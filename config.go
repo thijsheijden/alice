@@ -2,29 +2,27 @@ package alice
 
 import (
 	"time"
-
-	"github.com/streadway/amqp"
 )
 
 // ConnectionConfig is a config structure to use when setting up a RabbitMQ connection
 type ConnectionConfig struct {
-	amqpUser       string
-	amqpPassword   string
-	amqpHost       string
-	amqpPort       int
-	autoReconnect  bool
-	reconnectDelay time.Duration
-	errorHandler   func(chan *amqp.Error)
+	AmqpUser       string
+	AmqpPassword   string
+	AmqpHost       string
+	AmqpPort       int
+	AutoReconnect  bool
+	ReconnectDelay time.Duration
+	ErrorHandler   func(<-chan error)
 }
 
 // DefaultConfig is the default configuration for RabbitMQ.
 // User: guest, password: guest, host: localhost, port: 5672, autoReconnect: true, reconnectDelay: 5 seconds.
 var DefaultConfig = &ConnectionConfig{
-	amqpUser:       "guest",
-	amqpPassword:   "guest",
-	amqpHost:       "localhost",
-	amqpPort:       5672,
-	autoReconnect:  true,
-	reconnectDelay: time.Second * 5,
-	errorHandler:   DefaultErrorHandler,
+	AmqpUser:       "guest",
+	AmqpPassword:   "guest",
+	AmqpHost:       "localhost",
+	AmqpPort:       5672,
+	AutoReconnect:  true,
+	ReconnectDelay: time.Second * 1,
+	ErrorHandler:   DefaultErrorHandler,
 }
