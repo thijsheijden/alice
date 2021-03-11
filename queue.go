@@ -2,29 +2,23 @@ package alice
 
 import "github.com/streadway/amqp"
 
+// Queue models a RabbitMQ queue
 type Queue struct {
-	name       string
-	durable    bool
-	exclusive  bool
-	autoDelete bool
-	noWait     bool
-	arguments  amqp.Table
+	name       string     // Name of the queue
+	durable    bool       // Does this queue persist during broker restarts?
+	exclusive  bool       // Is this queue exclusive to one consumer? This also sets autoDelete to true.
+	autoDelete bool       // Does this queue get deleted when no-one is consuming from it?
+	noWait     bool       // Should we skip waiting for an acknowledgement from the broker?
+	args       amqp.Table // Additional amqp arguments to configure the exchange
 }
 
-//Creates a default Queue with given name and durable: true, exclusive: false, autoDelete: false and arguments: nil
+// CreateDefaultQueue creates and returns a queue with the following parameters:
+//	durable: true, exclusive, false, autoDelete: false, noWait: false, args: nil
 func CreateDefaultQueue(name string) *Queue {
-	q := &Queue{
-		name:       name,
-		durable:    true,
-		exclusive:  false,
-		autoDelete: false,
-		noWait:     false,
-		arguments:  nil,
-	}
-	return q
+	return CreateQueue(name, true, false, false, false, nil)
 }
 
-//Creates a fully customised queue
+// CreateQueue returns a queue created with the accompanied specifications
 func CreateQueue(name string, durable bool, exclusive bool, autoDelete bool, noWait bool, arguments amqp.Table) *Queue {
 	q := &Queue{
 		name:       name,
@@ -32,7 +26,7 @@ func CreateQueue(name string, durable bool, exclusive bool, autoDelete bool, noW
 		exclusive:  exclusive,
 		autoDelete: autoDelete,
 		noWait:     noWait,
-		arguments:  arguments,
+		args:       arguments,
 	}
 	return q
 }

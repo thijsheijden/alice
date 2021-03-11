@@ -10,13 +10,13 @@ import (
 
 // Connection models a RabbitMQ connection
 type Connection struct {
-	conn         *amqp.Connection
-	errorChan    chan error
-	errorHandler func(<-chan error)
-	config       ConnectionConfig
+	conn         *amqp.Connection   // The connection to the RabbitMQ broker
+	errorChan    chan error         // Channel for errors
+	errorHandler func(<-chan error) // Error handler that handles these errors
+	config       ConnectionConfig   // Configuration for connection
 }
 
-// Connect connects to the RabbitMQ broker using the supplied config
+// Connect connects to the RabbitMQ broker using the supplied configuration
 func Connect(config ConnectionConfig) *Connection {
 
 	var err error

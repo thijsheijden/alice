@@ -9,10 +9,11 @@ import (
 
 // Producer models a RabbitMQ producer
 type Producer struct {
-	channel  *amqp.Channel
-	exchange *Exchange
+	channel  *amqp.Channel // The channel this producer uses to communicate with the broker
+	exchange *Exchange     // The exchange this producer produces to
 }
 
+// CreateProducer creates and returns a producer attached to the given exchange
 func (c *Connection) CreateProducer(exchange Exchange) *Producer {
 	var err error
 
@@ -28,7 +29,7 @@ func (c *Connection) CreateProducer(exchange Exchange) *Producer {
 		exchange.name,
 		exchange.exchangeType.String(),
 		exchange.durable,
-		exchange.autodelete,
+		exchange.autoDelete,
 		exchange.internal,
 		exchange.noWait,
 		exchange.args,
@@ -38,7 +39,8 @@ func (c *Connection) CreateProducer(exchange Exchange) *Producer {
 	return p
 }
 
-func (p *Producer) ProduceMessage(msg string, key string) {
+// PublishMessage publishes a message with the given routing key
+func (p *Producer) PublishMessage(msg interface{}, key string) {
 
 	m, _ := json.Marshal(msg)
 
@@ -58,12 +60,14 @@ func (p *Producer) ProduceMessage(msg string, key string) {
 	logError(err, "Failed to publish message")
 }
 
-func (p *Producer) Produce1000Messages() {
-	for i := 0; i < 1000000; i++ {
-		p.ProduceMessage("Honk!", "test")
+// PublishNMessages publishes n messages
+func (p *Producer) PublishNMessages(n int) {
+	for i := 0; i < n; i++ {
+		p.PublishMessage("Honk!", "test")
 	}
 }
 
-func (p *Producer) DeferShutdown() {
+// Shutdown closes this producer's channel
+func (p *Producer) Shutdown() {
 	p.channel.Close()
 }

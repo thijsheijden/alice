@@ -6,11 +6,11 @@ import "github.com/streadway/amqp"
 type Exchange struct {
 	name         string       // Name of the exchange
 	exchangeType ExchangeType // Type of the exchange
-	durable      bool
-	autodelete   bool
-	internal     bool
-	noWait       bool
-	args         amqp.Table
+	durable      bool         // Does the exchange persist during broker restarts?
+	autoDelete   bool         // Does the exchange get deleted if no queue is attached to it?
+	internal     bool         // Is this an internal exchange?
+	noWait       bool         // Should we skip waiting for an acknowledgement from the broker?
+	args         amqp.Table   // Additional amqp arguments to configure the exchange
 }
 
 // ExchangeType denotes the types of exchanges RabbitMQ has
@@ -37,26 +37,16 @@ func (t ExchangeType) String() string {
 // CreateDefaultExchange returns an exchange with the following specifications:
 //	durable: true, autodelete: false, internal: false, noWait: false, args: nil
 func CreateDefaultExchange(name string, exchangeType ExchangeType) *Exchange {
-	e := &Exchange{
-		name:         name,
-		exchangeType: exchangeType,
-		durable:      true,
-		autodelete:   false,
-		internal:     false,
-		noWait:       false,
-		args:         nil,
-	}
-
-	return e
+	return CreateExchange(name, exchangeType, true, false, false, false, nil)
 }
 
 // CreateExchange creates an exchange according to the specified arguments
-func CreateExchange(name string, exchangeType ExchangeType, durable bool, autodelete bool, internal bool, noWait bool, args amqp.Table) *Exchange {
+func CreateExchange(name string, exchangeType ExchangeType, durable bool, autoDelete bool, internal bool, noWait bool, args amqp.Table) *Exchange {
 	e := &Exchange{
 		name:         name,
 		exchangeType: exchangeType,
 		durable:      durable,
-		autodelete:   autodelete,
+		autoDelete:   autoDelete,
 		internal:     internal,
 		noWait:       noWait,
 		args:         args,

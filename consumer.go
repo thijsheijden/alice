@@ -8,8 +8,8 @@ import (
 
 // Consumer models a RabbitMQ consumer
 type Consumer struct {
-	channel *amqp.Channel
-	queue   *Queue
+	channel *amqp.Channel // Channel this consumer uses to communicate with broker
+	queue   *Queue        // The queue this consumer consumes from
 }
 
 // ConsumeMessages consumes messages sent to the consumer
@@ -32,23 +32,23 @@ func (c *Consumer) ConsumeMessages(args amqp.Table, messageHandler func(amqp.Del
 }
 
 // CreateConsumer creates a new Consumer
-func (c *Connection) CreateConsumer(exchange Exchange, q Queue, bindingKey string) *Consumer {
-	cons := &Consumer{
+func (c *Connection) CreateConsumer(exchange Exchange, queue Queue, bindingKey string) *Consumer {
+	consumer := &Consumer{
 		channel: nil,
-		queue:   &q,
+		queue:   &queue,
 	}
 
 	var err error
 
-	cons.channel, err = c.conn.Channel()
+	consumer.channel, err = c.conn.Channel()
 	logError(err, "Failed to open channel")
 
 	//Connect to this specific exchange, default taken from exchange.go
-	err = cons.channel.ExchangeDeclare(
+	err = consumer.channel.ExchangeDeclare(
 		exchange.name,
 		string(exchange.exchangeType),
 		exchange.durable,
-		exchange.autodelete,
+		exchange.autoDelete,
 		exchange.internal,
 		exchange.noWait,
 		exchange.args,
@@ -56,22 +56,22 @@ func (c *Connection) CreateConsumer(exchange Exchange, q Queue, bindingKey strin
 	logError(err, "Failed to declare exchange")
 
 	//Create a queue with the same name as Kubernetes pod
-	queue, err := cons.channel.QueueDeclare(
-		q.name,
-		q.durable,
-		q.autoDelete,
-		q.exclusive,
-		q.noWait,
-		q.arguments,
+	q, err := consumer.channel.QueueDeclare(
+		queue.name,
+		queue.durable,
+		queue.autoDelete,
+		queue.exclusive,
+		queue.noWait,
+		queue.args,
 	)
 	logError(err, "Failed to declare queue")
 
 	log.Printf("Declared queue (%q %d messages, %d consumer), binding to exchange %q",
-		q.name, queue.Messages, queue.Consumers, exchange.name)
+		queue.name, q.Messages, q.Consumers, exchange.name)
 
 	//Bind the queue to the exchange
-	err = cons.channel.QueueBind(
-		q.name,
+	err = consumer.channel.QueueBind(
+		queue.name,
 		bindingKey,
 		exchange.name,
 		false,
@@ -79,10 +79,10 @@ func (c *Connection) CreateConsumer(exchange Exchange, q Queue, bindingKey strin
 	)
 	logError(err, "Failed to bind queue to exchange")
 
-	return cons
+	return consumer
 }
 
 // Shutdown shuts down the consumer
-func (cons *Consumer) Shutdown() error {
-	return cons.channel.Close()
+func (c *Consumer) Shutdown() error {
+	return c.channel.Close()
 }
