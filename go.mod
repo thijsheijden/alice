@@ -1,4 +1,4 @@
-module whiterabbit
+module alice 
 
 go 1.16
 

@@ -1,4 +1,4 @@
-package whiterabbit
+package alice
 
 import "github.com/streadway/amqp"
 
@@ -7,6 +7,6 @@ import "github.com/streadway/amqp"
 var LogMessages bool = true
 
 // DefaultErrorHandler is the default whiterabbit error handler
-func DefaultErrorHandler(err *amqp.Error) {
+func DefaultErrorHandler(err chan *amqp.Error) {
 
 }

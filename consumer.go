@@ -1,1 +1,1 @@
-package whiterabbit
+package alice
