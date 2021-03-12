@@ -54,3 +54,38 @@ func CreateExchange(name string, exchangeType ExchangeType, durable bool, autoDe
 
 	return e
 }
+
+// SetName sets the exchange name
+func (e *Exchange) SetName(name string) {
+	e.name = name
+}
+
+// SetType sets the exchange type
+func (e *Exchange) SetType(exchangeType ExchangeType) {
+	e.exchangeType = exchangeType
+}
+
+// SetDurable sets exchange durability
+func (e *Exchange) SetDurable(durable bool) {
+	e.durable = durable
+}
+
+// SetAutoDelete sets exchange autoDelete
+func (e *Exchange) SetAutoDelete(autoDelete bool) {
+	e.autoDelete = autoDelete
+}
+
+// SetInternal sets whether exchange is internal
+func (e *Exchange) SetInternal(internal bool) {
+	e.internal = internal
+}
+
+// SetNoWait sets the noWait flag
+func (e *Exchange) SetNoWait(noWait bool) {
+	e.noWait = noWait
+}
+
+// SetArgs sets additional exchange arguments
+func (e *Exchange) SetArgs(args amqp.Table) {
+	e.args = args
+}
