@@ -2,6 +2,7 @@ package alice
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -9,17 +10,20 @@ import (
 
 // Producer models a RabbitMQ producer
 type Producer struct {
-	channel  *amqp.Channel // The channel this producer uses to communicate with the broker
-	exchange *Exchange     // The exchange this producer produces to
+	channel      *amqp.Channel // The channel this producer uses to communicate with the broker
+	exchange     *Exchange     // The exchange this producer produces to
+	errorHandler func(error)   // Error handler for this producer
 }
 
-// CreateProducer creates and returns a producer attached to the given exchange
-func (c *Connection) CreateProducer(exchange Exchange) *Producer {
+// CreateProducer creates and returns a producer attached to the given exchange.
+// The errorHandler can be the DefaultProducerErrorHandler or a custom handler.
+func (c *Connection) CreateProducer(exchange Exchange, errorHandler func(error)) *Producer {
 	var err error
 
 	p := &Producer{
-		channel:  nil,
-		exchange: &exchange,
+		channel:      nil,
+		exchange:     &exchange,
+		errorHandler: errorHandler,
 	}
 
 	p.channel, err = c.conn.Channel()
@@ -57,7 +61,9 @@ func (p *Producer) PublishMessage(msg interface{}, key string) {
 			Headers:      nil,
 		},
 	)
-	logError(err, "Failed to publish message")
+	if err != nil {
+		p.errorHandler(err)
+	}
 }
 
 // PublishNMessages publishes n messages
@@ -70,4 +76,9 @@ func (p *Producer) PublishNMessages(n int) {
 // Shutdown closes this producer's channel
 func (p *Producer) Shutdown() {
 	p.channel.Close()
+}
+
+// DefaultProducerErrorHandler is the default producer error handler
+func DefaultProducerErrorHandler(err error) {
+	fmt.Println(err)
 }
