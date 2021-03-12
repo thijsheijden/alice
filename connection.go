@@ -10,10 +10,9 @@ import (
 
 // Connection models a RabbitMQ connection
 type Connection struct {
-	conn         *amqp.Connection   // The connection to the RabbitMQ broker
-	errorChan    chan error         // Channel for errors
-	errorHandler func(<-chan error) // Error handler that handles these errors
-	config       ConnectionConfig   // Configuration for connection
+	conn         *amqp.Connection // The connection to the RabbitMQ broker
+	errorHandler func(error)      // The error handler for this connection
+	config       ConnectionConfig // Configuration for connection
 }
 
 // Connect connects to the RabbitMQ broker using the supplied configuration
@@ -23,21 +22,29 @@ func Connect(config ConnectionConfig) *Connection {
 
 	connection := &Connection{
 		conn:         nil,
-		errorChan:    make(chan error),
-		errorHandler: config.ErrorHandler,
+		errorHandler: config.errorHandler,
 		config:       config,
 	}
 
-	// Go handle errors
-	go connection.errorHandler(connection.errorChan)
+	amqpURI := "amqp://" + config.user + ":" + config.password + "@" + config.host + ":" + fmt.Sprint(config.port)
 
-	amqpURI := "amqp://" + config.AmqpUser + ":" + config.AmqpPassword + "@" + config.AmqpHost + ":" + fmt.Sprint(config.AmqpPort)
+	// Create a buffered done channel to fill when connection is established
+	done := make(chan bool, 1)
 
-	connection.conn, err = amqp.Dial(amqpURI)
-	connection.errorChan <- err
+	// Go create a connection
+	go func() {
+		connection.conn, err = amqp.Dial(amqpURI)
+		connection.errorHandler(err)
+
+		// If there is no error continue
+		if err == nil {
+			done <- true
+		}
+	}()
+	<-done
 
 	// Handle the closing notifications
-	if config.AutoReconnect {
+	if config.autoReconnect {
 		go connection.reconnect(connection.conn.NotifyClose(make(chan *amqp.Error)))
 	} else { // No reconnecting so just send this error into the error channel?
 
@@ -56,7 +63,7 @@ func (c *Connection) reconnect(ch chan *amqp.Error) {
 	<-ch // Connection was closed for some reason
 
 	// Create new ticker with the desired connection delay time
-	ticker := time.NewTicker(c.config.ReconnectDelay)
+	ticker := time.NewTicker(c.config.reconnectDelay)
 
 	for {
 		<-ticker.C // New tick
@@ -64,7 +71,7 @@ func (c *Connection) reconnect(ch chan *amqp.Error) {
 		var err error
 
 		logMessage("Attempting to reconnect to RabbitMQ")
-		c.conn, err = amqp.Dial("amqp://" + c.config.AmqpUser + ":" + c.config.AmqpPassword + "@" + c.config.AmqpHost + ":" + fmt.Sprint(c.config.AmqpPort))
+		c.conn, err = amqp.Dial("amqp://" + c.config.user + ":" + c.config.password + "@" + c.config.host + ":" + fmt.Sprint(c.config.port))
 
 		logError(err, "Failed to reconnect")
 
