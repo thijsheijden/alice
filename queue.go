@@ -32,3 +32,33 @@ func CreateQueue(exchange *Exchange, name string, durable bool, exclusive bool, 
 	}
 	return q
 }
+
+// SetName sets the queue name
+func (q *Queue) SetName(name string) {
+	q.name = name
+}
+
+// SetDurable set exchange durability
+func (q *Queue) SetDurable(durable bool) {
+	q.durable = durable
+}
+
+// SetExclusive sets queue exclusivity
+func (q *Queue) SetExclusive(exclusive bool) {
+	q.exclusive = exclusive
+}
+
+// SetAutoDelete sets queue auto deletion
+func (q *Queue) SetAutoDelete(autoDelete bool) {
+	q.autoDelete = autoDelete
+}
+
+// SetNoWait sets the noWait flag
+func (q *Queue) SetNoWait(noWait bool) {
+	q.noWait = noWait
+}
+
+// SetArgs sets additional queue arguments
+func (q *Queue) SetArgs(args amqp.Table) {
+	q.args = args
+}
