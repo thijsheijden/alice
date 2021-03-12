@@ -1,6 +1,7 @@
 package alice
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/streadway/amqp"
@@ -8,8 +9,9 @@ import (
 
 // Consumer models a RabbitMQ consumer
 type Consumer struct {
-	channel *amqp.Channel // Channel this consumer uses to communicate with broker
-	queue   *Queue        // The queue this consumer consumes from
+	channel      *amqp.Channel // Channel this consumer uses to communicate with broker
+	queue        *Queue        // The queue this consumer consumes from
+	errorHandler func(error)   // Error Handler for this consumer
 }
 
 // ConsumeMessages consumes messages sent to the consumer
@@ -32,19 +34,42 @@ func (c *Consumer) ConsumeMessages(args amqp.Table, messageHandler func(amqp.Del
 }
 
 // CreateConsumer creates a new Consumer
-func (c *Connection) CreateConsumer(exchange Exchange, queue Queue, bindingKey string) *Consumer {
+func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandler func(error)) *Consumer {
+
 	consumer := &Consumer{
-		channel: nil,
-		queue:   &queue,
+		channel:      nil,
+		queue:        queue,
+		errorHandler: errorHandler,
 	}
 
 	var err error
 
+	//Connects to the channel
 	consumer.channel, err = c.conn.Channel()
 	logError(err, "Failed to open channel")
 
-	//Connect to this specific exchange, default taken from exchange.go
-	err = consumer.channel.ExchangeDeclare(
+	//Connects to exchange
+	err = consumer.ConnectToExchange(queue.exchange)
+	logError(err, "Failed to declare exchange")
+
+	//Creates the queue
+	q, err := consumer.CreateQueue(queue)
+	logError(err, "Failed to declare queue")
+
+	//Binds the queue to the exchange
+	err = consumer.BindQueue(queue, bindingKey)
+	logError(err, "Failed to bind queue to exchange")
+
+	//Prints the specifications
+	log.Printf("Declared queue (%q %d messages, %d consumer), binding to exchange %q",
+		queue.name, q.Messages, q.Consumers, queue.exchange.name)
+
+	return consumer
+}
+
+// ConnectToExchange connects to a specific exchange
+func (c *Consumer) ConnectToExchange(exchange *Exchange) error {
+	e := c.channel.ExchangeDeclare(
 		exchange.name,
 		string(exchange.exchangeType),
 		exchange.durable,
@@ -53,10 +78,12 @@ func (c *Connection) CreateConsumer(exchange Exchange, queue Queue, bindingKey s
 		exchange.noWait,
 		exchange.args,
 	)
-	logError(err, "Failed to declare exchange")
+	return e
+}
 
-	//Create a queue with the same name as Kubernetes pod
-	q, err := consumer.channel.QueueDeclare(
+// CreateQueue creates a queue with the same name as Kubernetes pod
+func (c *Consumer) CreateQueue(queue *Queue) (amqp.Queue, error) {
+	q, e := c.channel.QueueDeclare(
 		queue.name,
 		queue.durable,
 		queue.autoDelete,
@@ -64,25 +91,27 @@ func (c *Connection) CreateConsumer(exchange Exchange, queue Queue, bindingKey s
 		queue.noWait,
 		queue.args,
 	)
-	logError(err, "Failed to declare queue")
+	return q, e
+}
 
-	log.Printf("Declared queue (%q %d messages, %d consumer), binding to exchange %q",
-		queue.name, q.Messages, q.Consumers, exchange.name)
-
-	//Bind the queue to the exchange
-	err = consumer.channel.QueueBind(
+// BindQueue binds the queue to the exchange
+func (c *Consumer) BindQueue(queue *Queue, bindingKey string) error {
+	e := c.channel.QueueBind(
 		queue.name,
 		bindingKey,
-		exchange.name,
+		queue.exchange.name,
 		false,
 		nil,
 	)
-	logError(err, "Failed to bind queue to exchange")
-
-	return consumer
+	return e
 }
 
 // Shutdown shuts down the consumer
 func (c *Consumer) Shutdown() error {
 	return c.channel.Close()
+}
+
+// DefaultConsumerErrorHandler handles the errors of this consumer
+func DefaultConsumerErrorHandler(err error) {
+	fmt.Println(err)
 }
