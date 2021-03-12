@@ -6,16 +6,18 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// LogMessages is a boolean that determines whether whiterabbit logs messages
-// Primarily useful during debugging.
+// LogMessages is a boolean that determines whether Alice logs messages
 var LogMessages bool = true
 
-// DefaultErrorHandler is the default whiterabbit error handler
-func DefaultErrorHandler(errs <-chan error) {
-	for err := range errs {
-		if err == amqp.ErrCredentials {
-			failWithError(err)
-		}
+// DefaultErrorHandler is the default Connection error handler
+func DefaultErrorHandler(err error) {
+	switch err {
+	case amqp.ErrCredentials:
+		failWithError(err, "Invalid credentials")
+	case nil:
+
+	default:
+		failWithError(err, "Error occurred")
 	}
 }
 
@@ -25,7 +27,8 @@ func logMessage(msg string) {
 	}
 }
 
-func failWithError(err error) {
+func failWithError(err error, msg string) {
+	fmt.Println(msg)
 	panic(err)
 }
 
@@ -34,3 +37,14 @@ func logError(err error, msg string) {
 		fmt.Printf("%s: %v\n", msg, err)
 	}
 }
+
+// Error is an error
+type Error struct {
+	Reason      string
+	Recoverable string
+}
+
+var (
+	// ErrConnectionRefused connection was refused
+	ErrConnectionRefused = Error{Reason: ""}
+)
