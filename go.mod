@@ -1,4 +1,4 @@
-module alice 
+module github.com/thijsheijden/alice
 
 go 1.16
 
