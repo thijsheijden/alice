@@ -1,6 +1,10 @@
 package alice
 
-import "github.com/streadway/amqp"
+import (
+	"errors"
+
+	"github.com/streadway/amqp"
+)
 
 // Exchange models a RabbitMQ exchange
 type Exchange struct {
@@ -34,25 +38,37 @@ func (t ExchangeType) String() string {
 	return string(t)
 }
 
+// IsValid determines whether an exchangeType is valid
+func (t *ExchangeType) IsValid() bool {
+	switch *t {
+	case Direct, Fanout, Topic, Headers:
+		return true
+	default:
+		return false
+	}
+}
+
 // CreateDefaultExchange returns an exchange with the following specifications:
 //	durable: true, autodelete: false, internal: false, noWait: false, args: nil
-func CreateDefaultExchange(name string, exchangeType ExchangeType) *Exchange {
+func CreateDefaultExchange(name string, exchangeType ExchangeType) (*Exchange, error) {
 	return CreateExchange(name, exchangeType, true, false, false, false, nil)
 }
 
 // CreateExchange creates an exchange according to the specified arguments
-func CreateExchange(name string, exchangeType ExchangeType, durable bool, autoDelete bool, internal bool, noWait bool, args amqp.Table) *Exchange {
-	e := &Exchange{
-		name:         name,
-		exchangeType: exchangeType,
-		durable:      durable,
-		autoDelete:   autoDelete,
-		internal:     internal,
-		noWait:       noWait,
-		args:         args,
+func CreateExchange(name string, exchangeType ExchangeType, durable bool, autoDelete bool, internal bool, noWait bool, args amqp.Table) (*Exchange, error) {
+	if exchangeType.IsValid() {
+		e := &Exchange{
+			name:         name,
+			exchangeType: exchangeType,
+			durable:      durable,
+			autoDelete:   autoDelete,
+			internal:     internal,
+			noWait:       noWait,
+			args:         args,
+		}
+		return e, nil
 	}
-
-	return e
+	return nil, errors.New("Invalid exchange type")
 }
 
 // SetName sets the exchange name
@@ -61,8 +77,12 @@ func (e *Exchange) SetName(name string) {
 }
 
 // SetType sets the exchange type
-func (e *Exchange) SetType(exchangeType ExchangeType) {
-	e.exchangeType = exchangeType
+func (e *Exchange) SetType(exchangeType ExchangeType) error {
+	if exchangeType.IsValid() {
+		e.exchangeType = exchangeType
+		return nil
+	}
+	return errors.New("Invalid exchange type")
 }
 
 // SetDurable sets exchange durability
