@@ -27,6 +27,20 @@ var DefaultConfig = &ConnectionConfig{
 	errorHandler:   DefaultErrorHandler,
 }
 
+// CreateConfig creates a connection configuration with the supplied parameters
+func CreateConfig(user string, password string, host string, port int, autoReconnect bool, reconnectDelay time.Duration, errorHandler func(error)) *ConnectionConfig {
+	config := &ConnectionConfig{
+		user:           user,
+		password:       password,
+		host:           host,
+		port:           port,
+		autoReconnect:  autoReconnect,
+		reconnectDelay: reconnectDelay,
+		errorHandler:   errorHandler,
+	}
+	return config
+}
+
 // SetUser sets the user to use for the connection to the broker
 func (config *ConnectionConfig) SetUser(user string) {
 	config.user = user
