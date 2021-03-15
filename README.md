@@ -2,7 +2,7 @@
   <a href="https://it_me-ian.artstation.com/"></a><img width="40%" src="images/down_the_rabbit_hole.png" alt="Follow me down the rabbit hole...">
 </p>
 <p align="center">
-  “Alice sighed wearily. 'I think you might do something better with the time,' she said, 'than waste it in asking riddles that have no answers.'" Lewis Carroll.
+  “I'm late! I'm late! For a very important date!" - White Rabbit.
 </p>
 
 # Alice
