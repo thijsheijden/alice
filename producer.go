@@ -2,7 +2,7 @@ package alice
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -10,26 +10,60 @@ import (
 
 // Producer models a RabbitMQ producer
 type Producer struct {
-	channel      *amqp.Channel // The channel this producer uses to communicate with the broker
-	exchange     *Exchange     // The exchange this producer produces to
-	errorHandler func(error)   // Error handler for this producer
+	channel      *amqp.Channel       // The channel this producer uses to communicate with the broker
+	exchange     *Exchange           // The exchange this producer produces to
+	errorHandler func(ProducerError) // Error handler for this producer
+	conn         *Connection         // Pointer to broker connection
 }
 
 // CreateProducer creates and returns a producer attached to the given exchange.
 // The errorHandler can be the DefaultProducerErrorHandler or a custom handler.
-func (c *Connection) CreateProducer(exchange Exchange, errorHandler func(error)) *Producer {
+func (c *Connection) CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) *Producer {
+
 	var err error
 
+	// Create producer object
 	p := &Producer{
 		channel:      nil,
-		exchange:     &exchange,
+		exchange:     exchange,
 		errorHandler: errorHandler,
+		conn:         c,
 	}
 
-	p.channel, err = c.conn.Channel()
-	logError(err, "Could not open producer channel")
+	// Open channel to broker
+	err = p.openChannel(c)
+	if err != nil {
+		p.errorHandler(ProducerError{producer: p, err: err, status: 300}) // Throw error that channel could not be opened
+	}
 
-	err = p.channel.ExchangeDeclare(
+	// Declare the exchange
+	err = p.declareExchange(exchange)
+	if err != nil {
+		p.errorHandler(ProducerError{producer: p, err: err, status: 202}) // Throw error that the exchange could not be declared
+	}
+
+	// Listen for channel or connection close message
+	p.listenForClose()
+
+	// Listen for overflow messages from broker
+	p.listenForFlow()
+
+	// Listen for returned messages from the broker
+	p.listenForReturnedMessages()
+
+	return p
+}
+
+// Open channel to broker
+func (p *Producer) openChannel(c *Connection) error {
+	var err error
+	p.channel, err = c.conn.Channel()
+	return err
+}
+
+// Declare exchange this producer will produce to
+func (p *Producer) declareExchange(exchange *Exchange) error {
+	err := p.channel.ExchangeDeclare(
 		exchange.name,
 		exchange.exchangeType.String(),
 		exchange.durable,
@@ -38,9 +72,58 @@ func (c *Connection) CreateProducer(exchange Exchange, errorHandler func(error))
 		exchange.noWait,
 		exchange.args,
 	)
-	logError(err, "Failed to declare producer exchange")
+	return err
+}
 
-	return p
+// Subscribe to channel close events and make sure to respond to them
+func (p *Producer) listenForClose() {
+	closeChan := p.channel.NotifyClose(make(chan *amqp.Error))
+	go func() {
+		closeError := <-closeChan
+		err := ProducerError{
+			producer:    p,
+			err:         closeError,
+			status:      320,
+			recoverable: closeError.Recover,
+		}
+		p.errorHandler(err)
+	}()
+}
+
+// Listen for flow messages from the broker
+// If a flow message comes in we need to do some rate limiting
+func (p *Producer) listenForFlow() {
+	flowChan := p.channel.NotifyFlow(make(chan bool))
+	go func() {
+		for {
+			<-flowChan
+			err := ProducerError{
+				producer:    p,
+				err:         errors.New("Too many messages being produced"),
+				status:      505,
+				recoverable: true,
+			}
+			p.errorHandler(err)
+		}
+	}()
+}
+
+// Listen for a returned message from the broker
+// Will only be called if the mandatory flag is set and there is no queue bound, or the immediate flag is set and there is no free consumer
+func (p *Producer) listenForReturnedMessages() {
+	returnedMessageChan := p.channel.NotifyReturn(make(chan amqp.Return))
+	go func() {
+		for {
+			returnedMsg := <-returnedMessageChan
+			err := ProducerError{
+				producer: p,
+				err:      errors.New("Message was returned from the exchange"),
+				status:   100,
+				returned: returnedMsg,
+			}
+			p.errorHandler(err)
+		}
+	}()
 }
 
 // PublishMessage publishes a message with the given routing key
@@ -62,7 +145,7 @@ func (p *Producer) PublishMessage(msg interface{}, key string) {
 		},
 	)
 	if err != nil {
-		p.errorHandler(err)
+		p.errorHandler(ProducerError{producer: p, err: err, status: 504}) // Error can only be channel or connection not being open
 	}
 }
 
@@ -73,12 +156,12 @@ func (p *Producer) PublishNMessages(n int) {
 	}
 }
 
+// ReconnectChannel tries to re-open this producer's channel
+func (p *Producer) ReconnectChannel() {
+	p.openChannel(p.conn)
+}
+
 // Shutdown closes this producer's channel
 func (p *Producer) Shutdown() {
 	p.channel.Close()
-}
-
-// DefaultProducerErrorHandler is the default producer error handler
-func DefaultProducerErrorHandler(err error) {
-	fmt.Println(err)
 }
