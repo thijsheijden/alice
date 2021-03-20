@@ -20,11 +20,11 @@ func main() {
 		fmt.Println(err)
 	}
 
-	cons := c.CreateConsumer(queue, "test", alice.DefaultConsumerErrorHandler)
-	go cons.ConsumeMessages(nil, func(delivery amqp.Delivery) { fmt.Println(delivery.Body) })
+	cons, _ := c.CreateConsumer(queue, "test", alice.DefaultConsumerErrorHandler)
+	go cons.ConsumeMessages(nil, true, func(delivery amqp.Delivery) { fmt.Println(delivery.Body) })
 
 	// Create producer on default exchange
-	p := c.CreateProducer(exchange, alice.DefaultProducerErrorHandler)
+	p, _ := c.CreateProducer(exchange, alice.DefaultProducerErrorHandler)
 	defer p.Shutdown()
 
 	// Publish message
