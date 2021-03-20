@@ -1,7 +1,9 @@
 package main
 
 import (
-	"alice"
+	"fmt"
+
+	"github.com/thijsheijden/alice"
 
 	"github.com/streadway/amqp"
 )
@@ -12,18 +14,21 @@ func main() {
 	// Connect to RabbitMQ
 	c := alice.Connect(*a)
 
-	queue := alice.CreateDefaultQueue("test-queue")
-	exchange := alice.CreateDefaultExchange("test-exchange", alice.Direct)
+	exchange, err := alice.CreateDefaultExchange("test-exchange", alice.Direct)
+	queue := alice.CreateDefaultQueue(exchange, "test-queue")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-	cons := c.CreateConsumer(*exchange, *queue, "test")
-	go cons.ConsumeMessages(nil, func(delivery amqp.Delivery) {})
+	cons := c.CreateConsumer(queue, "test", alice.DefaultConsumerErrorHandler)
+	go cons.ConsumeMessages(nil, func(delivery amqp.Delivery) { fmt.Println(delivery.Body) })
 
 	// Create producer on default exchange
-	p := c.CreateProducer(*exchange)
-	defer p.DeferShutdown()
+	p := c.CreateProducer(exchange, alice.DefaultProducerErrorHandler)
+	defer p.Shutdown()
 
 	// Publish message
-	p.Produce1000Messages()
+	p.PublishNMessages(5)
 
 	select {}
 }

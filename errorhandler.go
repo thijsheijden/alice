@@ -48,3 +48,45 @@ var (
 	// ErrConnectionRefused connection was refused
 	ErrConnectionRefused = Error{Reason: ""}
 )
+
+// MARK: Producer errors
+
+// ProducerError are errors the producer can throw and which need to be handled by the producer error handler
+type ProducerError struct {
+	producer    *Producer   // The producer that had this error
+	err         error       // The actual error that occurred
+	status      int         // Status code belonging to this error
+	returned    amqp.Return // Message that this error is about
+	recoverable bool        // Whether this error is recoverable by retrying at a later moment
+}
+
+func (pe *ProducerError) Error() string {
+	return fmt.Sprintf("producer error: %v", pe.err)
+}
+
+// DefaultProducerErrorHandler is the default producer error handler
+func DefaultProducerErrorHandler(err ProducerError) {
+	switch err.status {
+	case 504: // Error while publishing message
+		// Publishing channel or RabbitMQ connection not open
+		logMessage(err.Error())
+	case 320: // Error thrown on NotifyClose
+		// Channel or connection was closed
+		logMessage(err.Error())
+
+		// If this is recoverable try and recover
+		if err.recoverable {
+			err.producer.ReconnectChannel()
+		}
+	case 300: // Error opening channel
+		panic(err.Error)
+	case 202: // Error declaring exchange
+		panic(err.Error)
+	case 505: // Too many messages being published, rate limit messages
+		// TODO: Rate limit messages for some time
+	case 100: // Message was returned from the broker due to being undeliverable
+		// TODO: Resend message?
+	default:
+		logMessage(err.Error())
+	}
+}

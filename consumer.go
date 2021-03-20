@@ -34,7 +34,7 @@ func (c *Consumer) ConsumeMessages(args amqp.Table, messageHandler func(amqp.Del
 }
 
 // CreateConsumer creates a new Consumer
-func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandler func(error)) *Consumer {
+func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandler func(error)) (*Consumer, error) {
 
 	consumer := &Consumer{
 		channel:      nil,
@@ -46,25 +46,33 @@ func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandle
 
 	//Connects to the channel
 	consumer.channel, err = c.conn.Channel()
-	logError(err, "Failed to open channel")
+	if err != nil {
+		return nil, err
+	}
 
 	//Connects to exchange
 	err = consumer.ConnectToExchange(queue.exchange)
-	logError(err, "Failed to declare exchange")
+	if err != nil {
+		return nil, err
+	}
 
 	//Creates the queue
 	q, err := consumer.CreateQueue(queue)
-	logError(err, "Failed to declare queue")
+	if err != nil {
+		return nil, err
+	}
 
 	//Binds the queue to the exchange
 	err = consumer.BindQueue(queue, bindingKey)
-	logError(err, "Failed to bind queue to exchange")
+	if err != nil {
+		return nil, err
+	}
 
 	//Prints the specifications
 	log.Printf("Declared queue (%q %d messages, %d consumer), binding to exchange %q",
 		queue.name, q.Messages, q.Consumers, queue.exchange.name)
 
-	return consumer
+	return consumer, nil
 }
 
 // ConnectToExchange connects to a specific exchange
