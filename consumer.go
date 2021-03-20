@@ -15,11 +15,11 @@ type Consumer struct {
 }
 
 // ConsumeMessages consumes messages sent to the consumer
-func (c *Consumer) ConsumeMessages(args amqp.Table, messageHandler func(amqp.Delivery)) {
+func (c *Consumer) ConsumeMessages(args amqp.Table, autoAck bool, messageHandler func(amqp.Delivery)) {
 	messages, err := c.channel.Consume(
 		c.queue.name,
 		"",
-		false,
+		autoAck,
 		false,
 		false,
 		false,
@@ -29,7 +29,6 @@ func (c *Consumer) ConsumeMessages(args amqp.Table, messageHandler func(amqp.Del
 
 	for message := range messages {
 		go messageHandler(message)
-		message.Ack(true)
 	}
 }
 
