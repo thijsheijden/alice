@@ -18,7 +18,7 @@ type Producer struct {
 
 // CreateProducer creates and returns a producer attached to the given exchange.
 // The errorHandler can be the DefaultProducerErrorHandler or a custom handler.
-func (c *Connection) CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) *Producer {
+func (c *Connection) CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) (*Producer, error) {
 
 	var err error
 
@@ -33,13 +33,15 @@ func (c *Connection) CreateProducer(exchange *Exchange, errorHandler func(Produc
 	// Open channel to broker
 	err = p.openChannel(c)
 	if err != nil {
-		p.errorHandler(ProducerError{producer: p, err: err, status: 300}) // Throw error that channel could not be opened
+		// Throw error that channel could not be opened
+		return nil, err
 	}
 
 	// Declare the exchange
 	err = p.declareExchange(exchange)
 	if err != nil {
-		p.errorHandler(ProducerError{producer: p, err: err, status: 202}) // Throw error that the exchange could not be declared
+		// Throw error that the exchange could not be declared
+		return nil, err
 	}
 
 	// Listen for channel or connection close message
@@ -51,7 +53,7 @@ func (c *Connection) CreateProducer(exchange *Exchange, errorHandler func(Produc
 	// Listen for returned messages from the broker
 	p.listenForReturnedMessages()
 
-	return p
+	return p, nil
 }
 
 // Open channel to broker
