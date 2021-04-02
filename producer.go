@@ -129,13 +129,13 @@ func (p *Producer) listenForReturnedMessages() {
 }
 
 // PublishMessage publishes a message with the given routing key
-func (p *Producer) PublishMessage(msg interface{}, key string) {
+func (p *Producer) PublishMessage(msg *interface{}, key *string, headers *amqp.Table) {
 
-	m, _ := json.Marshal(msg)
+	m, _ := json.Marshal(*msg)
 
 	err := p.channel.Publish(
 		p.exchange.name,
-		key,
+		*key,
 		false,
 		false,
 		amqp.Publishing{
@@ -143,18 +143,11 @@ func (p *Producer) PublishMessage(msg interface{}, key string) {
 			ContentType:  "plaintext",
 			Body:         m,
 			Timestamp:    time.Now(),
-			Headers:      nil,
+			Headers:      *headers,
 		},
 	)
 	if err != nil {
 		p.errorHandler(ProducerError{producer: p, err: err, status: 504}) // Error can only be channel or connection not being open
-	}
-}
-
-// PublishNMessages publishes n messages
-func (p *Producer) PublishNMessages(n int) {
-	for i := 0; i < n; i++ {
-		p.PublishMessage("Honk!", "test")
 	}
 }
 
