@@ -129,9 +129,9 @@ func (p *Producer) listenForReturnedMessages() {
 }
 
 // PublishMessage publishes a message with the given routing key
-func (p *Producer) PublishMessage(msg *interface{}, key *string, headers *amqp.Table) {
+func (p *Producer) PublishMessage(msg interface{}, key *string, headers *amqp.Table) {
 
-	m, _ := json.Marshal(*msg)
+	m, _ := json.Marshal(msg)
 
 	err := p.channel.Publish(
 		p.exchange.name,
