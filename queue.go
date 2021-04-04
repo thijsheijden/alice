@@ -10,6 +10,7 @@ type Queue struct {
 	exclusive  bool       // Is this queue exclusive to one consumer? This also sets autoDelete to true.
 	autoDelete bool       // Does this queue get deleted when no-one is consuming from it?
 	noWait     bool       // Should we skip waiting for an acknowledgement from the broker?
+	bindingKey string     // The key with which this queue is bound to the exchange
 	args       amqp.Table // Additional amqp arguments to configure the exchange
 }
 

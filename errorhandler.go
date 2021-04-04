@@ -53,11 +53,11 @@ var (
 
 // ProducerError are errors the producer can throw and which need to be handled by the producer error handler
 type ProducerError struct {
-	producer    *Producer   // The producer that had this error
-	err         error       // The actual error that occurred
-	status      int         // Status code belonging to this error
-	returned    amqp.Return // Message that this error is about
-	recoverable bool        // Whether this error is recoverable by retrying at a later moment
+	producer    *RabbitProducer // The producer that had this error
+	err         error           // The actual error that occurred
+	status      int             // Status code belonging to this error
+	returned    amqp.Return     // Message that this error is about
+	recoverable bool            // Whether this error is recoverable by retrying at a later moment
 }
 
 func (pe *ProducerError) Error() string {

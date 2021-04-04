@@ -7,15 +7,15 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// Consumer models a RabbitMQ consumer
-type Consumer struct {
+// RabbitConsumer models a RabbitMQ consumer
+type RabbitConsumer struct {
 	channel      *amqp.Channel // Channel this consumer uses to communicate with broker
 	queue        *Queue        // The queue this consumer consumes from
 	errorHandler func(error)   // Error Handler for this consumer
 }
 
 // ConsumeMessages consumes messages sent to the consumer
-func (c *Consumer) ConsumeMessages(args amqp.Table, autoAck bool, messageHandler func(amqp.Delivery)) {
+func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageHandler func(amqp.Delivery)) {
 	messages, err := c.channel.Consume(
 		c.queue.name,
 		"",
@@ -33,9 +33,9 @@ func (c *Consumer) ConsumeMessages(args amqp.Table, autoAck bool, messageHandler
 }
 
 // CreateConsumer creates a new Consumer
-func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandler func(error)) (*Consumer, error) {
+func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandler func(error)) (*RabbitConsumer, error) {
 
-	consumer := &Consumer{
+	consumer := &RabbitConsumer{
 		channel:      nil,
 		queue:        queue,
 		errorHandler: errorHandler,
@@ -50,19 +50,19 @@ func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandle
 	}
 
 	//Connects to exchange
-	err = consumer.ConnectToExchange(queue.exchange)
+	err = consumer.declareExchange(queue.exchange)
 	if err != nil {
 		return nil, err
 	}
 
 	//Creates the queue
-	q, err := consumer.CreateQueue(queue)
+	q, err := consumer.declareQueue(queue)
 	if err != nil {
 		return nil, err
 	}
 
 	//Binds the queue to the exchange
-	err = consumer.BindQueue(queue, bindingKey)
+	err = consumer.bindQueue(queue, bindingKey)
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +74,7 @@ func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandle
 	return consumer, nil
 }
 
-// ConnectToExchange connects to a specific exchange
-func (c *Consumer) ConnectToExchange(exchange *Exchange) error {
+func (c *RabbitConsumer) declareExchange(exchange *Exchange) error {
 	e := c.channel.ExchangeDeclare(
 		exchange.name,
 		string(exchange.exchangeType),
@@ -88,8 +87,7 @@ func (c *Consumer) ConnectToExchange(exchange *Exchange) error {
 	return e
 }
 
-// CreateQueue creates a queue with the same name as Kubernetes pod
-func (c *Consumer) CreateQueue(queue *Queue) (amqp.Queue, error) {
+func (c *RabbitConsumer) declareQueue(queue *Queue) (amqp.Queue, error) {
 	q, e := c.channel.QueueDeclare(
 		queue.name,
 		queue.durable,
@@ -101,8 +99,7 @@ func (c *Consumer) CreateQueue(queue *Queue) (amqp.Queue, error) {
 	return q, e
 }
 
-// BindQueue binds the queue to the exchange
-func (c *Consumer) BindQueue(queue *Queue, bindingKey string) error {
+func (c *RabbitConsumer) bindQueue(queue *Queue, bindingKey string) error {
 	e := c.channel.QueueBind(
 		queue.name,
 		bindingKey,
@@ -114,7 +111,7 @@ func (c *Consumer) BindQueue(queue *Queue, bindingKey string) error {
 }
 
 // Shutdown shuts down the consumer
-func (c *Consumer) Shutdown() error {
+func (c *RabbitConsumer) Shutdown() error {
 	return c.channel.Close()
 }
 

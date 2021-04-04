@@ -15,44 +15,6 @@ type Connection struct {
 	config       ConnectionConfig // Configuration for connection
 }
 
-// Connect connects to the RabbitMQ broker using the supplied configuration
-func Connect(config ConnectionConfig) *Connection {
-
-	var err error
-
-	connection := &Connection{
-		conn:         nil,
-		errorHandler: config.errorHandler,
-		config:       config,
-	}
-
-	amqpURI := "amqp://" + config.user + ":" + config.password + "@" + config.host + ":" + fmt.Sprint(config.port)
-
-	// Create a buffered done channel to fill when connection is established
-	done := make(chan bool, 1)
-
-	// Go create a connection
-	go func() {
-		connection.conn, err = amqp.Dial(amqpURI)
-		connection.errorHandler(err)
-
-		// If there is no error continue
-		if err == nil {
-			done <- true
-		}
-	}()
-	<-done
-
-	// Handle the closing notifications
-	if config.autoReconnect {
-		go connection.reconnect(connection.conn.NotifyClose(make(chan *amqp.Error)))
-	} else { // No reconnecting so just send this error into the error channel?
-
-	}
-
-	return connection
-}
-
 // Shutdown shuts down the connection to rabbitmq
 func (c *Connection) Shutdown() {
 	c.conn.Close()

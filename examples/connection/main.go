@@ -3,32 +3,33 @@ package main
 import (
 	"fmt"
 
-	"github.com/thijsheijden/alice"
-
 	"github.com/streadway/amqp"
+	"github.com/thijsheijden/alice"
 )
 
+type test struct {
+	Msg string
+}
+
 func main() {
-	a := alice.DefaultConfig
+	broker := alice.CreateMockBroker()
 
-	// Connect to RabbitMQ
-	c := alice.Connect(*a)
+	e, _ := alice.CreateExchange("ui-direct-exchange", alice.Direct, true, false, false, false, nil)
 
-	exchange, err := alice.CreateDefaultExchange("test-exchange", alice.Direct)
-	queue := alice.CreateDefaultQueue(exchange, "test-queue")
-	if err != nil {
-		fmt.Println(err)
-	}
+	q := alice.CreateQueue(e, "test-queue", false, false, true, false, nil)
 
-	cons, _ := c.CreateConsumer(queue, "test", alice.DefaultConsumerErrorHandler)
-	go cons.ConsumeMessages(nil, true, func(delivery amqp.Delivery) { fmt.Println(delivery.Body) })
+	c, _ := broker.CreateConsumer(q, "key", alice.DefaultConsumerErrorHandler)
 
-	// Create producer on default exchange
-	p, _ := c.CreateProducer(exchange, alice.DefaultProducerErrorHandler)
-	defer p.Shutdown()
+	go c.ConsumeMessages(nil, true, handleMessage)
 
-	// Publish message
-	p.PublishNMessages(5)
+	p, _ := broker.CreateProducer(e, alice.DefaultProducerErrorHandler)
+
+	key := "key"
+	p.PublishMessage("Hey!", &key, &amqp.Table{})
 
 	select {}
+}
+
+func handleMessage(msg amqp.Delivery) {
+	fmt.Println(msg.Body)
 }
