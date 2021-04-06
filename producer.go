@@ -1,7 +1,6 @@
 package alice
 
 import (
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -129,9 +128,7 @@ func (p *RabbitProducer) listenForReturnedMessages() {
 }
 
 // PublishMessage publishes a message with the given routing key
-func (p *RabbitProducer) PublishMessage(msg interface{}, key *string, headers *amqp.Table) {
-
-	m, _ := json.Marshal(msg)
+func (p *RabbitProducer) PublishMessage(msg []byte, key *string, headers *amqp.Table) {
 
 	err := p.channel.Publish(
 		p.exchange.name,
@@ -141,7 +138,7 @@ func (p *RabbitProducer) PublishMessage(msg interface{}, key *string, headers *a
 		amqp.Publishing{
 			DeliveryMode: amqp.Transient,
 			ContentType:  "plaintext",
-			Body:         m,
+			Body:         msg,
 			Timestamp:    time.Now(),
 			Headers:      *headers,
 		},

@@ -1,8 +1,6 @@
 package alice
 
 import (
-	"encoding/json"
-
 	"github.com/streadway/amqp"
 )
 
@@ -13,7 +11,7 @@ type MockProducer struct {
 }
 
 // PublishMessage publishes a message
-func (p *MockProducer) PublishMessage(msg interface{}, key *string, headers *amqp.Table) {
+func (p *MockProducer) PublishMessage(msg []byte, key *string, headers *amqp.Table) {
 	// Find the queues this message was meant for
 	var queuesToSendTo []*Queue = make([]*Queue, 0, 10)
 	for _, q := range p.broker.exchanges[p.exchange] {
@@ -22,13 +20,11 @@ func (p *MockProducer) PublishMessage(msg interface{}, key *string, headers *amq
 		}
 	}
 
-	d, _ := json.Marshal(msg)
-
 	delivery := amqp.Delivery{
 		Headers:         *headers,
 		ContentType:     "",
 		ContentEncoding: "",
-		Body:            d,
+		Body:            msg,
 	}
 
 	// Send message to the queues
