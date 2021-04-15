@@ -2,6 +2,7 @@ package alice
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/streadway/amqp"
 )
@@ -119,5 +120,5 @@ func (c *RabbitConsumer) Shutdown() error {
 
 // DefaultConsumerErrorHandler handles the errors of this consumer
 func DefaultConsumerErrorHandler(err error) {
-	fmt.Println(err)
+	log.Println(err)
 }

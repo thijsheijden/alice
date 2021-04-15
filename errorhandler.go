@@ -34,13 +34,13 @@ func logMessage(msg string) {
 }
 
 func failWithError(err error, msg string) {
-	fmt.Println(msg)
+	log.Println(msg)
 	panic(err)
 }
 
 func logError(err error, msg string) {
 	if err != nil {
-		fmt.Printf("%s: %v\n", msg, err)
+		log.Printf("%s: %v\n", msg, err)
 	}
 }
 
