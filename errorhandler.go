@@ -34,7 +34,7 @@ func logMessage(msg string) {
 }
 
 func failWithError(err error, msg string) {
-	log.Println(msg)
+	log.Println(err)
 	panic(err)
 }
 
