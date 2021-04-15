@@ -2,6 +2,7 @@ package alice
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/streadway/amqp"
 )
@@ -28,7 +29,7 @@ func SetLogging() {
 
 func logMessage(msg string) {
 	if logMessages {
-		fmt.Println(msg)
+		log.Println(msg)
 	}
 }
 
