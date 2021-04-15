@@ -2,7 +2,6 @@ package alice
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/streadway/amqp"
 )
@@ -69,8 +68,8 @@ func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandle
 	}
 
 	//Prints the specifications
-	log.Printf("Declared queue (%q %d messages, %d consumer), binding to exchange %q",
-		queue.name, q.Messages, q.Consumers, queue.exchange.name)
+	logMessage(fmt.Sprintf("Declared queue %s with currently %d consumers, binding to exchange %q",
+		queue.name, q.Consumers, queue.exchange.name))
 
 	return consumer, nil
 }
