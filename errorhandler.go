@@ -7,7 +7,7 @@ import (
 )
 
 // LogMessages is a boolean that determines whether Alice logs messages
-var LogMessages bool = true
+var logMessages bool = false
 
 // DefaultErrorHandler is the default Connection error handler
 func DefaultErrorHandler(err error) {
@@ -21,8 +21,13 @@ func DefaultErrorHandler(err error) {
 	}
 }
 
+// SetLogging turns logging on
+func SetLogging() {
+	logMessages = true
+}
+
 func logMessage(msg string) {
-	if LogMessages {
+	if logMessages {
 		fmt.Println(msg)
 	}
 }

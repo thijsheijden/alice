@@ -2,6 +2,7 @@ package alice
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -51,6 +52,8 @@ func (c *Connection) CreateProducer(exchange *Exchange, errorHandler func(Produc
 
 	// Listen for returned messages from the broker
 	p.listenForReturnedMessages()
+
+	logMessage(fmt.Sprintf("Created producer on exchange '%s'", exchange.name))
 
 	return p, nil
 }
@@ -129,6 +132,8 @@ func (p *RabbitProducer) listenForReturnedMessages() {
 
 // PublishMessage publishes a message with the given routing key
 func (p *RabbitProducer) PublishMessage(msg []byte, key *string, headers *amqp.Table) {
+
+	logMessage(fmt.Sprintf("Publishing message of size '%d' bytes to exchange '%s' with routing key '%s'", len(msg), p.exchange.name, *key))
 
 	err := p.channel.Publish(
 		p.exchange.name,

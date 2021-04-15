@@ -28,12 +28,13 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, consumerName string, a
 	logError(err, "Failed to consume messages")
 
 	for message := range messages {
+		logMessage(fmt.Sprintf("Received message of '%d' bytes from exchange '%v'", len(message.Body), message.Exchange))
 		go messageHandler(message)
 	}
 }
 
 // CreateConsumer creates a new Consumer
-func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandler func(error)) (*RabbitConsumer, error) {
+func (c *Connection) CreateConsumer(queue *Queue, routingKey string, errorHandler func(error)) (*RabbitConsumer, error) {
 
 	consumer := &RabbitConsumer{
 		channel:      nil,
@@ -62,7 +63,7 @@ func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandle
 	}
 
 	//Binds the queue to the exchange
-	err = consumer.bindQueue(queue, bindingKey)
+	err = consumer.bindQueue(queue, routingKey)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +71,7 @@ func (c *Connection) CreateConsumer(queue *Queue, bindingKey string, errorHandle
 	//Prints the specifications
 	logMessage(fmt.Sprintf("Declared queue %s with currently %d consumers, binding to exchange %q",
 		queue.name, q.Consumers, queue.exchange.name))
+	logMessage(fmt.Sprintf("Created consumer on queue '%s' with routing key '%s'", queue.name, routingKey))
 
 	return consumer, nil
 }
