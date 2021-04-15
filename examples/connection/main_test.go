@@ -22,12 +22,12 @@ func TestBroker(t *testing.T) {
 
 	c, _ := broker.CreateConsumer(q, "key", alice.DefaultConsumerErrorHandler)
 
-	go c.ConsumeMessages(nil, true, testHandleMessage)
+	go c.ConsumeMessages(nil, "", true, testHandleMessage)
 
 	p, _ := broker.CreateProducer(e, alice.DefaultProducerErrorHandler)
 
 	key := "key"
-	p.PublishMessage("Hey!", &key, &amqp.Table{})
+	p.PublishMessage([]byte("Hey!"), &key, &amqp.Table{})
 
 	<-done
 

@@ -20,12 +20,12 @@ func main() {
 
 	c, _ := broker.CreateConsumer(q, "key", alice.DefaultConsumerErrorHandler)
 
-	go c.ConsumeMessages(nil, true, handleMessage)
+	go c.ConsumeMessages(nil, "", true, handleMessage)
 
 	p, _ := broker.CreateProducer(e, alice.DefaultProducerErrorHandler)
 
 	key := "key"
-	p.PublishMessage("Hey!", &key, &amqp.Table{})
+	p.PublishMessage([]byte("Hey!"), &key, &amqp.Table{})
 
 	select {}
 }

@@ -10,7 +10,7 @@ type Broker interface {
 
 // A Consumer models a broker consumer
 type Consumer interface {
-	ConsumeMessages(args amqp.Table, autoAck bool, messageHandler func(amqp.Delivery))
+	ConsumeMessages(args amqp.Table, consumerName string, autoAck bool, messageHandler func(amqp.Delivery))
 	Shutdown() error
 }
 

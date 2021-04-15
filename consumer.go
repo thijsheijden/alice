@@ -15,10 +15,11 @@ type RabbitConsumer struct {
 }
 
 // ConsumeMessages consumes messages sent to the consumer
-func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageHandler func(amqp.Delivery)) {
+// Keep the consumerName empty if you wish to get a randomly generated consumer name
+func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, consumerName string, autoAck bool, messageHandler func(amqp.Delivery)) {
 	messages, err := c.channel.Consume(
 		c.queue.name,
-		"",
+		consumerName,
 		autoAck,
 		false,
 		false,
