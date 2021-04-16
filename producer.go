@@ -83,14 +83,8 @@ func (p *RabbitProducer) declareExchange(exchange *Exchange) error {
 func (p *RabbitProducer) listenForClose() {
 	closeChan := p.channel.NotifyClose(make(chan *amqp.Error))
 	go func() {
-		closeError := <-closeChan
-		err := ProducerError{
-			producer:    p,
-			err:         closeError,
-			status:      320,
-			recoverable: closeError.Recover,
-		}
-		p.errorHandler(err)
+		<-closeChan
+		logMessage("Producer was closed")
 	}()
 }
 
