@@ -149,10 +149,12 @@ func (p *RabbitProducer) PublishMessage(msg []byte, key *string, headers *amqp.T
 
 // ReconnectChannel tries to re-open this producer's channel
 func (p *RabbitProducer) ReconnectChannel() {
+	logMessage("Attempting to re-open producer channel")
 	p.openChannel(p.conn)
 }
 
 // Shutdown closes this producer's channel
 func (p *RabbitProducer) Shutdown() error {
+	logMessage("Shutting down producer")
 	return p.channel.Close()
 }

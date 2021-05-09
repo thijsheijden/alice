@@ -85,13 +85,15 @@ func DefaultProducerErrorHandler(err ProducerError) {
 			err.producer.ReconnectChannel()
 		}
 	case 300: // Error opening channel
-		panic(err.Error)
+		logMessage(err.Error())
 	case 202: // Error declaring exchange
-		panic(err.Error)
+		logMessage(err.Error())
 	case 505: // Too many messages being published, rate limit messages
 		// TODO: Rate limit messages for some time
+		logMessage(err.Error())
 	case 100: // Message was returned from the broker due to being undeliverable
 		// TODO: Resend message?
+		logMessage(err.Error())
 	default:
 		logMessage(err.Error())
 	}

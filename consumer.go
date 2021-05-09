@@ -2,7 +2,6 @@ package alice
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/streadway/amqp"
 )
@@ -12,6 +11,7 @@ type RabbitConsumer struct {
 	channel      *amqp.Channel // Channel this consumer uses to communicate with broker
 	queue        *Queue        // The queue this consumer consumes from
 	errorHandler func(error)   // Error Handler for this consumer
+	conn         *Connection   // Pointer to broker connection
 }
 
 // ConsumeMessages consumes messages sent to the consumer
@@ -41,6 +41,7 @@ func (c *Connection) CreateConsumer(queue *Queue, routingKey string, errorHandle
 		channel:      nil,
 		queue:        queue,
 		errorHandler: errorHandler,
+		conn:         c,
 	}
 
 	var err error
@@ -113,12 +114,33 @@ func (c *RabbitConsumer) bindQueue(queue *Queue, bindingKey string) error {
 	return e
 }
 
+func (c *RabbitConsumer) listenForClose() {
+	closeChan := c.channel.NotifyClose(make(chan *amqp.Error))
+	go func() {
+		err := <-closeChan
+		logMessage(err.Reason)
+		if err.Recover {
+			logMessage("Channel close is recoverable")
+			c.ReconnectChannel()
+		}
+	}()
+}
+
+// ReconnectChannel tries to re-open this consumers channel
+func (c *RabbitConsumer) ReconnectChannel() error {
+	logMessage("Attempting to re-open consumer channel")
+	var err error
+	c.channel, err = c.conn.conn.Channel()
+	return err
+}
+
 // Shutdown shuts down the consumer
 func (c *RabbitConsumer) Shutdown() error {
+	logMessage("Shutting down consumer")
 	return c.channel.Close()
 }
 
 // DefaultConsumerErrorHandler handles the errors of this consumer
 func DefaultConsumerErrorHandler(err error) {
-	log.Println(err)
+	logMessage(err.Error())
 }
