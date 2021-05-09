@@ -70,6 +70,8 @@ func (c *Connection) CreateConsumer(queue *Queue, routingKey string, errorHandle
 		return nil, err
 	}
 
+	consumer.listenForClose()
+
 	//Prints the specifications
 	logMessage(fmt.Sprintf("Declared queue %s with currently %d consumers, binding to exchange %q",
 		queue.name, q.Consumers, queue.exchange.name))
@@ -117,11 +119,14 @@ func (c *RabbitConsumer) bindQueue(queue *Queue, bindingKey string) error {
 func (c *RabbitConsumer) listenForClose() {
 	closeChan := c.channel.NotifyClose(make(chan *amqp.Error))
 	go func() {
-		err := <-closeChan
-		logMessage(err.Reason)
-		if err.Recover {
+		closeErr := <-closeChan
+		logMessage(closeErr.Reason)
+		if closeErr.Recover {
 			logMessage("Channel close is recoverable")
-			c.ReconnectChannel()
+			err := c.ReconnectChannel()
+			if err != nil {
+				logMessage(fmt.Sprintf("ERROR: %s", err.Error()))
+			}
 		}
 	}()
 }
