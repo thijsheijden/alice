@@ -2,6 +2,7 @@ package alice
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -19,15 +20,49 @@ func CreateBroker(config *ConnectionConfig) (*RabbitBroker, error) {
 		config: config,
 	}
 
-	// Test connection
-	conn, err := broker.connect()
-	if err != nil {
-		return nil, err
-	}
+	// Check if reconnect is turned on
+	if config.autoReconnect {
+		// Create a ticker with the reconnect delay
+		ticker := time.NewTicker(config.reconnectDelay)
 
-	// Close connection as it is not needed right now
-	conn.conn.Close()
-	return &broker, nil
+		// Create done channel (for when the connection is successfully established)
+		done := make(chan bool, 1)
+
+		for {
+			select {
+			case <-ticker.C:
+				logMessage("Attempting RabbitMQ connection")
+
+				// Attempt to connect to the broker
+				conn, err := broker.connect()
+
+				// If there is no error
+				if err == nil {
+					// Close the connection for now
+					conn.conn.Close()
+
+					// Stop the ticker
+					ticker.Stop()
+
+					// Signal that we are done
+					done <- true
+				}
+			case <-done:
+				logMessage("Succesfully connected to RabbitMQ broker")
+				return &broker, nil
+			}
+		}
+	} else {
+		// Test connection
+		conn, err := broker.connect()
+		if err != nil {
+			return nil, err
+		}
+
+		// Close connection as it is not needed right now
+		conn.conn.Close()
+		return &broker, nil
+	}
 }
 
 // CreateConsumer creates a consumer consuming from the specified queue using the specified key
@@ -77,8 +112,6 @@ func (b *RabbitBroker) connect() (*Connection, error) {
 	// Handle the closing notifications
 	if config.autoReconnect {
 		go connection.reconnect(connection.conn.NotifyClose(make(chan *amqp.Error)))
-	} else { // No reconnecting so just send this error into the error channel?
-
 	}
 
 	return connection, nil

@@ -29,7 +29,7 @@ func SetLogging() {
 
 func logMessage(msg string) {
 	if logMessages {
-		log.Println(msg)
+		log.Println(fmt.Printf("ALICE: %s", msg))
 	}
 }
 
