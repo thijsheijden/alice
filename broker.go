@@ -7,14 +7,18 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// A RabbitBroker is a rabbitmq broker
+// A RabbitBroker is a RabbitMQ broker
 type RabbitBroker struct {
-	config       *ConnectionConfig
-	consumerConn *Connection
-	producerConn *Connection
+	config       *ConnectionConfig // The config for the connection
+	consumerConn *connection       // Dedicated connection for consumers
+	producerConn *connection       // Dedicated connection for producers
 }
 
-// CreateBroker creates a RabbitMQ broker
+/*
+CreateBroker creates a RabbitBroker
+	config: *ConnectionConfig, the connection configuration that should be used to connect to the broker
+	Returns *RabbitBroker and a possible error
+*/
 func CreateBroker(config *ConnectionConfig) (*RabbitBroker, error) {
 	broker := RabbitBroker{
 		config: config,
@@ -65,35 +69,50 @@ func CreateBroker(config *ConnectionConfig) (*RabbitBroker, error) {
 	}
 }
 
-// CreateConsumer creates a consumer consuming from the specified queue using the specified key
+/*
+CreateConsumer creates a consumer
+	queue: *Queue, the queue this consumer should bind to
+	bindingKey: string, the key with which this consumer binds to the queue
+	errorHandler: func(error), the function to handle possible consumer errors
+	Returns: Consumer and a possible error
+*/
 func (b *RabbitBroker) CreateConsumer(queue *Queue, bindingKey string, errorHandler func(error)) (Consumer, error) {
 	if b.consumerConn == nil {
 		b.consumerConn, _ = b.connect()
 	}
 
-	return b.consumerConn.CreateConsumer(queue, bindingKey, errorHandler)
+	return b.consumerConn.createConsumer(queue, bindingKey, errorHandler)
 }
 
-// CreateProducer creates a producer using this broker
+/*
+CreateProducer creates a producer
+	exchange: *Exchange, the exchange this producer will produce to
+	errorHandler: func(ProducerError), the errorhandler for this producer
+	Returns: Producer and a possible error
+*/
 func (b *RabbitBroker) CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) (Producer, error) {
 	if b.producerConn == nil {
 		b.producerConn, _ = b.connect()
 	}
 
-	return b.producerConn.CreateProducer(exchange, errorHandler)
+	return b.producerConn.createProducer(exchange, errorHandler)
 }
 
-func (b *RabbitBroker) connect() (*Connection, error) {
+// Connect attempts to make a connection to the broker using the broker connection config
+func (b *RabbitBroker) connect() (*connection, error) {
 	var err error
 
+	// Get the connection config from the broker
 	config := *b.config
 
-	connection := &Connection{
+	// Create a connection struct
+	connection := &connection{
 		conn:         nil,
 		errorHandler: config.errorHandler,
 		config:       config,
 	}
 
+	// Form the RabbitMQ connection URI
 	amqpURI := "amqp://" + config.user + ":" + config.password + "@" + config.host + ":" + fmt.Sprint(config.port)
 
 	// Create a buffered done channel to fill when connection is established
@@ -101,7 +120,10 @@ func (b *RabbitBroker) connect() (*Connection, error) {
 
 	// Go create a connection
 	go func() {
+		// Attempt to dial up RabbitMQ
 		connection.conn, err = amqp.Dial(amqpURI)
+
+		// Once AMQP dial has completed, pass a possible error into the done channel
 		done <- err
 	}()
 	err = <-done
@@ -109,7 +131,7 @@ func (b *RabbitBroker) connect() (*Connection, error) {
 		return nil, err
 	}
 
-	// Handle the closing notifications
+	// Attach a listener to broker closing messages to attempt a reconnect (if autoReconnect is true)
 	if config.autoReconnect {
 		go connection.reconnect(connection.conn.NotifyClose(make(chan *amqp.Error)))
 	}
