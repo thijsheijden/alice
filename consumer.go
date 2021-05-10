@@ -11,7 +11,7 @@ type RabbitConsumer struct {
 	channel      *amqp.Channel // Channel this consumer uses to communicate with broker
 	queue        *Queue        // The queue this consumer consumes from
 	errorHandler func(error)   // Error Handler for this consumer
-	conn         *Connection   // Pointer to broker connection
+	conn         *connection   // Pointer to broker connection
 }
 
 // ConsumeMessages consumes messages sent to the consumer
@@ -34,8 +34,8 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, consumerName string, a
 	}
 }
 
-// CreateConsumer creates a new Consumer
-func (c *Connection) CreateConsumer(queue *Queue, routingKey string, errorHandler func(error)) (*RabbitConsumer, error) {
+// createConsumer creates a new Consumer
+func (c *connection) createConsumer(queue *Queue, routingKey string, errorHandler func(error)) (*RabbitConsumer, error) {
 
 	consumer := &RabbitConsumer{
 		channel:      nil,

@@ -8,20 +8,20 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// Connection models a RabbitMQ connection
-type Connection struct {
+// connection models a RabbitMQ connection
+type connection struct {
 	conn         *amqp.Connection // The connection to the RabbitMQ broker
 	errorHandler func(error)      // The error handler for this connection
 	config       ConnectionConfig // Configuration for connection
 }
 
-// Shutdown shuts down the connection to rabbitmq
-func (c *Connection) Shutdown() {
+// shutdown shuts down the connection to rabbitmq
+func (c *connection) shutdown() {
 	c.conn.Close()
 }
 
 // Handle automatic restarting on connection closed
-func (c *Connection) reconnect(ch chan *amqp.Error) {
+func (c *connection) reconnect(ch chan *amqp.Error) {
 	<-ch // Connection was closed for some reason
 
 	// Create new ticker with the desired connection delay time

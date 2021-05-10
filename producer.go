@@ -13,12 +13,12 @@ type RabbitProducer struct {
 	channel      *amqp.Channel       // The channel this producer uses to communicate with the broker
 	exchange     *Exchange           // The exchange this producer produces to
 	errorHandler func(ProducerError) // Error handler for this producer
-	conn         *Connection         // Pointer to broker connection
+	conn         *connection         // Pointer to broker connection
 }
 
 // CreateProducer creates and returns a producer attached to the given exchange.
 // The errorHandler can be the DefaultProducerErrorHandler or a custom handler.
-func (c *Connection) CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) (*RabbitProducer, error) {
+func (c *connection) createProducer(exchange *Exchange, errorHandler func(ProducerError)) (*RabbitProducer, error) {
 
 	var err error
 
@@ -59,7 +59,7 @@ func (c *Connection) CreateProducer(exchange *Exchange, errorHandler func(Produc
 }
 
 // Open channel to broker
-func (p *RabbitProducer) openChannel(c *Connection) error {
+func (p *RabbitProducer) openChannel(c *connection) error {
 	var err error
 	p.channel, err = c.conn.Channel()
 	return err
@@ -157,4 +157,48 @@ func (p *RabbitProducer) ReconnectChannel() {
 func (p *RabbitProducer) Shutdown() error {
 	logMessage("Shutting down producer")
 	return p.channel.Close()
+}
+
+// ProducerError are errors the producer can throw and which need to be handled by the producer error handler
+type ProducerError struct {
+	producer    *RabbitProducer // The producer that had this error
+	err         error           // The actual error that occurred
+	status      int             // Status code belonging to this error
+	returned    amqp.Return     // Message that this error is about
+	recoverable bool            // Whether this error is recoverable by retrying at a later moment
+}
+
+// MARK: Producer errors
+
+func (pe *ProducerError) Error() string {
+	return fmt.Sprintf("producer error: %v", pe.err)
+}
+
+// DefaultProducerErrorHandler is the default producer error handler
+func DefaultProducerErrorHandler(err ProducerError) {
+	switch err.status {
+	case 504: // Error while publishing message
+		// Publishing channel or RabbitMQ connection not open
+		logMessage(err.Error())
+	case 320: // Error thrown on NotifyClose
+		// Channel or connection was closed
+		logMessage(err.Error())
+
+		// If this is recoverable try and recover
+		if err.recoverable {
+			err.producer.ReconnectChannel()
+		}
+	case 300: // Error opening channel
+		logMessage(err.Error())
+	case 202: // Error declaring exchange
+		logMessage(err.Error())
+	case 505: // Too many messages being published, rate limit messages
+		// TODO: Rate limit messages for some time
+		logMessage(err.Error())
+	case 100: // Message was returned from the broker due to being undeliverable
+		// TODO: Resend message?
+		logMessage(err.Error())
+	default:
+		logMessage(err.Error())
+	}
 }
