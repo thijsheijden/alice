@@ -2,7 +2,6 @@ package alice
 
 import (
 	"fmt"
-	"runtime"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -21,8 +20,10 @@ func (c *connection) shutdown() {
 }
 
 // Handle automatic restarting on connection closed
-func (c *connection) reconnect(ch chan *amqp.Error) {
-	<-ch // Connection was closed for some reason
+func (c *connection) reconnect(t string, ch chan *amqp.Error) {
+	err := <-ch // Connection was closed for some reason
+
+	logError(err, fmt.Sprintf("%s connection was closed", t))
 
 	// Create new ticker with the desired connection delay time
 	ticker := time.NewTicker(c.config.reconnectDelay)
@@ -32,18 +33,17 @@ func (c *connection) reconnect(ch chan *amqp.Error) {
 
 		var err error
 
-		logMessage("Attempting to reconnect to RabbitMQ")
+		logMessage(fmt.Sprintf("Attempting to re-open %s connection", t))
 		c.conn, err = amqp.Dial("amqp://" + c.config.user + ":" + c.config.password + "@" + c.config.host + ":" + fmt.Sprint(c.config.port))
 
-		logError(err, "Failed to reconnect")
+		logError(err, fmt.Sprintf("Failed to re-open %s connection", t))
 
 		if !c.conn.IsClosed() {
-			go c.reconnect(c.conn.NotifyClose(make(chan *amqp.Error)))
+			go c.reconnect(t, c.conn.NotifyClose(make(chan *amqp.Error)))
 			ticker.Stop()
 			break
 		}
 	}
 
-	logMessage("Reconnected")
-	logMessage(fmt.Sprint(runtime.NumGoroutine()))
+	logMessage(fmt.Sprintf("Successfully re-opened %s connection", t))
 }
