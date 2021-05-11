@@ -32,6 +32,23 @@ func CreateBroker(config *ConnectionConfig) (*RabbitBroker, error) {
 		// Create done channel (for when the connection is successfully established)
 		done := make(chan bool, 1)
 
+		logMessage("Attempting RabbitMQ connection")
+
+		// Attempt to connect to the broker
+		conn, err := broker.connect()
+
+		// If there is no error
+		if err == nil {
+			// Close the connection for now
+			conn.conn.Close()
+
+			// Stop the ticker
+			ticker.Stop()
+
+			// Signal that we are done
+			done <- true
+		}
+
 		for {
 			select {
 			case <-ticker.C:
@@ -76,12 +93,13 @@ CreateConsumer creates a consumer
 	errorHandler: func(error), the function to handle possible consumer errors
 	Returns: Consumer and a possible error
 */
-func (b *RabbitBroker) CreateConsumer(queue *Queue, bindingKey string, errorHandler func(error)) (Consumer, error) {
+func (b *RabbitBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag string, autoAck bool, errorHandler func(error)) (Consumer, error) {
 	if b.consumerConn == nil {
 		b.consumerConn, _ = b.connect()
+		go b.consumerConn.reconnect("consumer", b.consumerConn.conn.NotifyClose(make(chan *amqp.Error)))
 	}
 
-	return b.consumerConn.createConsumer(queue, bindingKey, errorHandler)
+	return b.consumerConn.createConsumer(queue, bindingKey, consumerTag, autoAck, errorHandler)
 }
 
 /*
@@ -93,6 +111,7 @@ CreateProducer creates a producer
 func (b *RabbitBroker) CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) (Producer, error) {
 	if b.producerConn == nil {
 		b.producerConn, _ = b.connect()
+		go b.producerConn.reconnect("producer", b.producerConn.conn.NotifyClose(make(chan *amqp.Error)))
 	}
 
 	return b.producerConn.createProducer(exchange, errorHandler)
@@ -129,11 +148,6 @@ func (b *RabbitBroker) connect() (*connection, error) {
 	err = <-done
 	if err != nil {
 		return nil, err
-	}
-
-	// Attach a listener to broker closing messages to attempt a reconnect (if autoReconnect is true)
-	if config.autoReconnect {
-		go connection.reconnect(connection.conn.NotifyClose(make(chan *amqp.Error)))
 	}
 
 	return connection, nil
