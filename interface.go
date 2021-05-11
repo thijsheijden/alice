@@ -4,13 +4,13 @@ import "github.com/streadway/amqp"
 
 // A Broker models a broker
 type Broker interface {
-	CreateConsumer(queue *Queue, bindingKey string, errorHandler func(error)) (Consumer, error)
+	CreateConsumer(queue *Queue, bindingKey string, consumerTag string, errorHandler func(error)) (Consumer, error)
 	CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) (Producer, error)
 }
 
 // A Consumer models a broker consumer
 type Consumer interface {
-	ConsumeMessages(args amqp.Table, consumerName string, autoAck bool, messageHandler func(amqp.Delivery))
+	ConsumeMessages(args amqp.Table, messageHandler func(amqp.Delivery))
 	Shutdown() error
 }
 
