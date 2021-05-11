@@ -29,7 +29,7 @@ func SetLogging() {
 
 func logMessage(msg string) {
 	if logMessages {
-		log.Println(fmt.Printf("ALICE: %s", msg))
+		log.Println(fmt.Sprintf("ALICE: %s", msg))
 	}
 }
 
@@ -40,6 +40,6 @@ func failWithError(err error, msg string) {
 
 func logError(err error, msg string) {
 	if err != nil {
-		log.Printf("%s: %v\n", msg, err)
+		log.Printf("ALICE: ERROR: %s: %v\n", msg, err)
 	}
 }
