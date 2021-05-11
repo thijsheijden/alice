@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"runtime"
 
 	"github.com/streadway/amqp"
 	"github.com/thijsheijden/alice"
@@ -12,24 +14,28 @@ type test struct {
 }
 
 func main() {
-	broker := alice.CreateMockBroker()
+	alice.SetLogging()
+	broker, err := alice.CreateBroker(alice.DefaultConfig)
+	if err != nil {
+		log.Println(err)
+	}
 
-	e, _ := alice.CreateExchange("ui-direct-exchange", alice.Direct, true, false, false, false, nil)
+	exchange, err := alice.CreateExchange("test-exchange", alice.Direct, false, true, false, false, nil)
+	if err != nil {
+		log.Println(err)
+	}
 
-	q := alice.CreateQueue(e, "test-queue", false, false, true, false, nil)
+	q := alice.CreateQueue(exchange, "test-queue", false, false, true, false, nil)
 
-	c, _ := broker.CreateConsumer(q, "key", alice.DefaultConsumerErrorHandler)
+	c, err := broker.CreateConsumer(q, "key", "", false, alice.DefaultConsumerErrorHandler)
 
-	go c.ConsumeMessages(nil, "", true, handleMessage)
-
-	p, _ := broker.CreateProducer(e, alice.DefaultProducerErrorHandler)
-
-	key := "key"
-	p.PublishMessage([]byte("Hey!"), &key, &amqp.Table{})
+	go c.ConsumeMessages(nil, handleMessage)
 
 	select {}
 }
 
 func handleMessage(msg amqp.Delivery) {
 	fmt.Println(msg.Body)
+	msg.Ack(true)
+	log.Println(fmt.Sprintf("%v", runtime.NumGoroutine()))
 }
