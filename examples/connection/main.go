@@ -10,7 +10,7 @@ import (
 )
 
 type test struct {
-	Msg string
+	broker alice.Broker
 }
 
 func main() {
@@ -27,9 +27,9 @@ func main() {
 
 	q := alice.CreateQueue(exchange, "test-queue", false, false, true, false, nil)
 
-	c, err := broker.CreateConsumer(q, "key", "", false, alice.DefaultConsumerErrorHandler)
+	c, err := broker.CreateConsumer(q, "key", "", alice.DefaultConsumerErrorHandler)
 
-	go c.ConsumeMessages(nil, handleMessage)
+	go c.ConsumeMessages(nil, false, handleMessage)
 
 	select {}
 }

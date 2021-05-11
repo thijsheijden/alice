@@ -11,7 +11,7 @@ type MockConsumer struct {
 }
 
 // ConsumeMessages consumes messages sent to the consumer
-func (c *MockConsumer) ConsumeMessages(args amqp.Table, messageHandler func(amqp.Delivery)) {
+func (c *MockConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageHandler func(amqp.Delivery)) {
 	for msg := range c.broker.Messages[c.queue] {
 		c.ReceivedMessages = append(c.ReceivedMessages, msg)
 		go messageHandler(msg)

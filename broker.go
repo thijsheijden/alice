@@ -93,13 +93,13 @@ CreateConsumer creates a consumer
 	errorHandler: func(error), the function to handle possible consumer errors
 	Returns: Consumer and a possible error
 */
-func (b *RabbitBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag string, autoAck bool, errorHandler func(error)) (Consumer, error) {
+func (b *RabbitBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag string, errorHandler func(error)) (Consumer, error) {
 	if b.consumerConn == nil {
 		b.consumerConn, _ = b.connect()
 		go b.consumerConn.reconnect("consumer", b.consumerConn.conn.NotifyClose(make(chan *amqp.Error)))
 	}
 
-	return b.consumerConn.createConsumer(queue, bindingKey, consumerTag, autoAck, errorHandler)
+	return b.consumerConn.createConsumer(queue, bindingKey, consumerTag, errorHandler)
 }
 
 /*

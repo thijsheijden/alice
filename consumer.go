@@ -23,9 +23,10 @@ type RabbitConsumer struct {
 /*
 ConsumeMessages starts the consumption of messages from the queue the consumer is bound to
 	args: amqp.Table, additional arguments for this consumer
+	autoAck: bool, whether to automatically acknowledge messages
 	messageHandler: func(amqp.Delivery), a handler for incoming messages. Every message the handler is called in a new goroutine
 */
-func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, messageHandler func(amqp.Delivery)) {
+func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageHandler func(amqp.Delivery)) {
 	messages, err := c.channel.Consume(
 		c.queue.name,
 		c.tag,
@@ -38,6 +39,7 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, messageHandler func(am
 	logError(err, "Failed to consume messages")
 
 	// Set some more consumer attributes
+	c.autoAck = autoAck
 	c.args = args
 	c.messageHandler = messageHandler
 
@@ -45,11 +47,16 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, messageHandler func(am
 	for message := range messages {
 		logMessage(fmt.Sprintf("Received message of '%d' bytes from exchange '%v'", len(message.Body), message.Exchange))
 		go messageHandler(message)
+
+		if autoAck {
+			logMessage(fmt.Sprintf("Automatically acknowledged message %s", message.MessageId))
+			message.Ack(true)
+		}
 	}
 }
 
 // createConsumer creates a new Consumer on this connection
-func (c *connection) createConsumer(queue *Queue, routingKey string, consumerTag string, autoAck bool, errorHandler func(error)) (*RabbitConsumer, error) {
+func (c *connection) createConsumer(queue *Queue, routingKey string, consumerTag string, errorHandler func(error)) (Consumer, error) {
 
 	consumer := &RabbitConsumer{
 		channel:      nil,
@@ -57,7 +64,6 @@ func (c *connection) createConsumer(queue *Queue, routingKey string, consumerTag
 		errorHandler: errorHandler,
 		conn:         c,
 		tag:          consumerTag,
-		autoAck:      autoAck,
 		routingKey:   routingKey,
 	}
 
@@ -197,7 +203,7 @@ func (c *RabbitConsumer) reconnect() error {
 
 			logMessage("consumer reconnected")
 
-			go c.ConsumeMessages(c.args, c.messageHandler)
+			go c.ConsumeMessages(c.args, c.autoAck, c.messageHandler)
 
 			return nil
 		}
