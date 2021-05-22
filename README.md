@@ -13,6 +13,13 @@ Alice is a wrapper around the Streadway <a href="">amqp</a> package, designed to
 <hr>
 Credit for the cute Gopher goes to <a href="https://it_me-ian.artstation.com/">Ian Derksen</a>
 
+## Features
+- Automatic broker reconnect (attempted at a user-defined interval)
+- Automatic producer and consumer reconnect upon channel error
+- Every message handled in a new routine
+- Separate TCP connections for producers and consumers
+- Queues and exchanges are objects, which can be reused for multiple consumers and/or producers
+
 ## Installation
 ```shell
 go get github.com/thijsheijden/alice
