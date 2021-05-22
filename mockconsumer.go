@@ -4,6 +4,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// A MockConsumer implements the Consumer interface
 type MockConsumer struct {
 	queue            *Queue
 	broker           *MockBroker

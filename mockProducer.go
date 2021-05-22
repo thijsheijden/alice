@@ -4,7 +4,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// A MockProducer is a mocked producer
+// A MockProducer implements the Producer interface
 type MockProducer struct {
 	exchange *Exchange
 	broker   *MockBroker

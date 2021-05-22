@@ -7,7 +7,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// A RabbitBroker is a RabbitMQ broker
+// A RabbitBroker implements the Broker interface
 type RabbitBroker struct {
 	config       *ConnectionConfig // The config for the connection
 	consumerConn *connection       // Dedicated connection for consumers
@@ -15,11 +15,11 @@ type RabbitBroker struct {
 }
 
 /*
-CreateBroker creates a RabbitBroker
+CreateBroker creates a broker
 	config: *ConnectionConfig, the connection configuration that should be used to connect to the broker
-	Returns *RabbitBroker and a possible error
+	Returns Broker and a possible error
 */
-func CreateBroker(config *ConnectionConfig) (*RabbitBroker, error) {
+func CreateBroker(config *ConnectionConfig) (Broker, error) {
 	broker := RabbitBroker{
 		config: config,
 	}
