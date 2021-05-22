@@ -19,6 +19,7 @@ Credit for the cute Gopher goes to <a href="https://it_me-ian.artstation.com/">I
 - Every message handled in a new routine
 - Separate TCP connections for producers and consumers
 - Queues and exchanges are objects, which can be reused for multiple consumers and/or producers
+- Fully mocked broker, consumer and producer for testing
 
 ## Installation
 ```shell
