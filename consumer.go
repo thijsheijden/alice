@@ -46,22 +46,22 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageH
 	// Listen for incoming messages and pass them to the message handler
 	for message := range messages {
 		logMessage(fmt.Sprintf("Received message of '%d' bytes from exchange '%v'", len(message.Body), message.Exchange))
-		go func() {
+		go func(message amqp.Delivery) {
 			// Intercept any errors propagating up the stack
 			defer func() {
 				if err := recover(); err != nil {
 					logError(err.(error), "PANIC ")
 				}
+
+				if autoAck {
+					logMessage(fmt.Sprintf("Automatically acknowledged message %s", message.MessageId))
+					message.Ack(true)
+				}
 			}()
 
 			// Call the message handler
 			messageHandler(message)
-		}()
-
-		if autoAck {
-			logMessage(fmt.Sprintf("Automatically acknowledged message %s", message.MessageId))
-			message.Ack(true)
-		}
+		}(message)
 	}
 }
 

@@ -15,7 +15,18 @@ type MockConsumer struct {
 func (c *MockConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageHandler func(amqp.Delivery)) {
 	for msg := range c.broker.Messages[c.queue] {
 		c.ReceivedMessages = append(c.ReceivedMessages, msg)
-		go messageHandler(msg)
+
+		go func(msg amqp.Delivery) {
+			// Intercept any errors propagating up the stack
+			defer func() {
+				if err := recover(); err != nil {
+					logError(err.(error), "PANIC ")
+				}
+			}()
+
+			// Call the message handler
+			messageHandler(msg)
+		}(msg)
 	}
 }
 
