@@ -2,7 +2,12 @@ package alice
 
 // File contains global settings Alice uses
 
-import "github.com/rs/zerolog"
+import (
+	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+)
 
 var logLevel zerolog.Level = zerolog.TraceLevel
 
@@ -25,4 +30,5 @@ func SetLogLevel(level int) {
 	}
 	logLevel = zerolog.Level(level)
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 }
