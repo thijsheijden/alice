@@ -96,13 +96,13 @@ CreateConsumer creates a consumer
 	errorHandler: func(error), the function to handle possible consumer errors
 	Returns: Consumer and a possible error
 */
-func (b *RabbitBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag string, errorHandler func(error)) (Consumer, error) {
+func (b *RabbitBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag string) (Consumer, error) {
 	if b.consumerConn == nil {
 		b.consumerConn, _ = b.connect()
 		go b.consumerConn.reconnect("consumer", b.consumerConn.conn.NotifyClose(make(chan *amqp.Error)))
 	}
 
-	return b.consumerConn.createConsumer(queue, bindingKey, consumerTag, errorHandler)
+	return b.consumerConn.createConsumer(queue, bindingKey, consumerTag)
 }
 
 /*
@@ -111,13 +111,13 @@ CreateProducer creates a producer
 	errorHandler: func(ProducerError), the errorhandler for this producer
 	Returns: Producer and a possible error
 */
-func (b *RabbitBroker) CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) (Producer, error) {
+func (b *RabbitBroker) CreateProducer(exchange *Exchange) (Producer, error) {
 	if b.producerConn == nil {
 		b.producerConn, _ = b.connect()
 		go b.producerConn.reconnect("producer", b.producerConn.conn.NotifyClose(make(chan *amqp.Error)))
 	}
 
-	return b.producerConn.createProducer(exchange, errorHandler)
+	return b.producerConn.createProducer(exchange)
 }
 
 // Connect attempts to make a connection to the broker using the broker connection config
@@ -129,9 +129,8 @@ func (b *RabbitBroker) connect() (*connection, error) {
 
 	// Create a connection struct
 	connection := &connection{
-		conn:         nil,
-		errorHandler: config.errorHandler,
-		config:       config,
+		conn:   nil,
+		config: config,
 	}
 
 	// Form the RabbitMQ connection URI

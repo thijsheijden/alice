@@ -11,7 +11,6 @@ import (
 type RabbitConsumer struct {
 	channel        *amqp.Channel       // Channel this consumer uses to communicate with broker
 	queue          *Queue              // The queue this consumer consumes from
-	errorHandler   func(error)         // Error Handler for this consumer
 	conn           *connection         // Pointer to broker connection
 	autoAck        bool                // Whether this consumer want autoAck
 	tag            string              // Consumer tag
@@ -67,14 +66,13 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageH
 }
 
 // createConsumer creates a new Consumer on this connection
-func (c *connection) createConsumer(queue *Queue, routingKey string, consumerTag string, errorHandler func(error)) (Consumer, error) {
+func (c *connection) createConsumer(queue *Queue, routingKey string, consumerTag string) (Consumer, error) {
 	consumer := &RabbitConsumer{
-		channel:      nil,
-		queue:        queue,
-		errorHandler: errorHandler,
-		conn:         c,
-		tag:          consumerTag,
-		routingKey:   routingKey,
+		channel:    nil,
+		queue:      queue,
+		conn:       c,
+		tag:        consumerTag,
+		routingKey: routingKey,
 	}
 
 	var err error
@@ -217,10 +215,3 @@ func (c *RabbitConsumer) reconnect() error {
 		}
 	}
 }
-
-// DefaultConsumerErrorHandler handles the errors of this consumer
-func DefaultConsumerErrorHandler(err error) {
-	logMessage(err.Error())
-}
-
-// MARK: Consumer errors

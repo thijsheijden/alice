@@ -12,7 +12,6 @@ type ConnectionConfig struct {
 	port           int           // RabbitMQ broker port
 	autoReconnect  bool          // Whether to try to reconnect after a unexpected disconnect
 	reconnectDelay time.Duration // The delay between reconnection attempts
-	errorHandler   func(error)   // The error handler for the connection
 }
 
 // DefaultConfig is the default configuration for RabbitMQ.
@@ -24,11 +23,10 @@ var DefaultConfig = &ConnectionConfig{
 	port:           5672,
 	autoReconnect:  true,
 	reconnectDelay: time.Second * 10,
-	errorHandler:   DefaultErrorHandler,
 }
 
 // CreateConfig creates a connection configuration with the supplied parameters
-func CreateConfig(user string, password string, host string, port int, autoReconnect bool, reconnectDelay time.Duration, errorHandler func(error)) *ConnectionConfig {
+func CreateConfig(user string, password string, host string, port int, autoReconnect bool, reconnectDelay time.Duration) *ConnectionConfig {
 	config := &ConnectionConfig{
 		user:           user,
 		password:       password,
@@ -36,7 +34,6 @@ func CreateConfig(user string, password string, host string, port int, autoRecon
 		port:           port,
 		autoReconnect:  autoReconnect,
 		reconnectDelay: reconnectDelay,
-		errorHandler:   errorHandler,
 	}
 	return config
 }
@@ -69,9 +66,4 @@ func (config *ConnectionConfig) SetAutoReconnect(autoReconnect bool) {
 // SetReconnectDelay sets the delay between reconnection attempts
 func (config *ConnectionConfig) SetReconnectDelay(reconnectDelay time.Duration) {
 	config.reconnectDelay = reconnectDelay
-}
-
-// SetErrorHandler sets the error handler this connection uses
-func (config *ConnectionConfig) SetErrorHandler(errorHandler func(error)) {
-	config.errorHandler = errorHandler
 }

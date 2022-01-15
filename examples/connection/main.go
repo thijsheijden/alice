@@ -10,8 +10,7 @@ import (
 )
 
 func main() {
-	// Turn on logging
-	alice.SetLogging()
+	alice.SetLogLevel(-1)
 
 	// Create a connection configuration
 	connectionConfig := alice.CreateConfig(
@@ -21,7 +20,6 @@ func main() {
 		5672,
 		true,
 		time.Second*10,
-		alice.DefaultErrorHandler,
 	)
 
 	// Create a broker using the connection config
@@ -40,7 +38,7 @@ func main() {
 	q := alice.CreateQueue(exchange, "test-queue", false, false, true, false, nil)
 
 	// Create a consumer bound to this queue, listening for messages with routing key 'key'
-	c, err := broker.CreateConsumer(q, "key", "consumer-tag", alice.DefaultConsumerErrorHandler)
+	c, err := broker.CreateConsumer(q, "key", "consumer-tag")
 
 	// Start consuming messages
 	// Every received message is passed to the handleMessage function

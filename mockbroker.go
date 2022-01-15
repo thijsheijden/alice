@@ -19,7 +19,7 @@ func CreateMockBroker() Broker {
 }
 
 // CreateConsumer creates a new consumer (mock)
-func (b *MockBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag string, errorHandler func(error)) (Consumer, error) {
+func (b *MockBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag string) (Consumer, error) {
 	queue.bindingKey = bindingKey
 	c := &MockConsumer{
 		queue:            queue,
@@ -35,7 +35,7 @@ func (b *MockBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag
 }
 
 // CreateProducer creates a new producer (mock)
-func (b *MockBroker) CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) (Producer, error) {
+func (b *MockBroker) CreateProducer(exchange *Exchange) (Producer, error) {
 	p := &MockProducer{
 		exchange: exchange,
 		broker:   b,

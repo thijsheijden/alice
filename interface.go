@@ -4,8 +4,8 @@ import "github.com/streadway/amqp"
 
 // A Broker models a broker
 type Broker interface {
-	CreateConsumer(queue *Queue, bindingKey string, consumerTag string, errorHandler func(error)) (Consumer, error)
-	CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) (Producer, error)
+	CreateConsumer(queue *Queue, bindingKey string, consumerTag string) (Consumer, error)
+	CreateProducer(exchange *Exchange) (Producer, error)
 }
 
 // A Consumer models a broker consumer
