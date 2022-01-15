@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/streadway/amqp"
 )
 
@@ -53,7 +54,7 @@ func (c *connection) createProducer(exchange *Exchange, errorHandler func(Produc
 	// Listen for returned messages from the broker
 	p.listenForReturnedMessages()
 
-	logMessage(fmt.Sprintf("Created producer on exchange '%s'", exchange.name))
+	log.Info().Str("exchange", exchange.name).Msg("created producer")
 
 	return p, nil
 }
@@ -61,7 +62,9 @@ func (c *connection) createProducer(exchange *Exchange, errorHandler func(Produc
 // Open channel to broker
 func (p *RabbitProducer) openChannel(c *connection) error {
 	var err error
+	log.Info().Str("type", "producer").Str("exchange", p.exchange.name).Msg("attempting to open channel")
 	p.channel, err = c.conn.Channel()
+	log.Err(err).Str("type", "producer").Str("exchange", p.exchange.name).Msg("failed to open channel")
 	return err
 }
 
@@ -83,8 +86,8 @@ func (p *RabbitProducer) declareExchange(exchange *Exchange) error {
 func (p *RabbitProducer) listenForClose() {
 	closeChan := p.channel.NotifyClose(make(chan *amqp.Error))
 	go func() {
-		<-closeChan
-		logMessage("Producer was closed")
+		closeErr := <-closeChan
+		log.Error().Str("type", "producer").AnErr("err", closeErr).Str("exchange", p.exchange.name).Msg("connection was closed")
 	}()
 }
 
@@ -103,6 +106,7 @@ func (p *RabbitProducer) listenForFlow() {
 			}
 			p.errorHandler(err)
 		}
+		log.Error().Str("type", "producer").Str("exchange", p.exchange.name).Msg("too many messages being produced")
 	}()
 }
 
@@ -120,6 +124,7 @@ func (p *RabbitProducer) listenForReturnedMessages() {
 				returned: returnedMsg,
 			}
 			p.errorHandler(err)
+			log.Error().Str("type", "producer").Str("exchange", p.exchange.name).Interface("msg", returnedMsg).Msg("message was returned")
 		}
 	}()
 }
@@ -127,7 +132,7 @@ func (p *RabbitProducer) listenForReturnedMessages() {
 // PublishMessage publishes a message with the given routing key
 func (p *RabbitProducer) PublishMessage(msg []byte, key *string, headers *amqp.Table) {
 
-	logMessage(fmt.Sprintf("Publishing message of size '%d' bytes to exchange '%s' with routing key '%s'", len(msg), p.exchange.name, *key))
+	log.Trace().Str("type", "producer").Str("routingKey", *key).Str("exchange", p.exchange.name).Int("msgSize", len(msg)).Msg("producing message")
 
 	err := p.channel.Publish(
 		p.exchange.name,
@@ -142,20 +147,17 @@ func (p *RabbitProducer) PublishMessage(msg []byte, key *string, headers *amqp.T
 			Headers:      *headers,
 		},
 	)
-	if err != nil {
-		p.errorHandler(ProducerError{producer: p, err: err, status: 504}) // Error can only be channel or connection not being open
-	}
+	log.Err(err).Str("type", "producer").Str("routingKey", *key).Str("exchange", p.exchange.name).Msg("error during message production")
 }
 
 // ReconnectChannel tries to re-open this producer's channel
 func (p *RabbitProducer) ReconnectChannel() {
-	logMessage("Attempting to re-open producer channel")
 	p.openChannel(p.conn)
 }
 
 // Shutdown closes this producer's channel
 func (p *RabbitProducer) Shutdown() error {
-	logMessage("Shutting down producer")
+	log.Info().Str("type", "producer").Str("exchange", p.exchange.name).Msg("shutting down")
 	return p.channel.Close()
 }
 

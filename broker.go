@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/streadway/amqp"
 )
 
@@ -24,6 +25,8 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 		config: config,
 	}
 
+	log.Info().Msg("creating broker")
+
 	// Check if reconnect is turned on
 	if config.autoReconnect {
 		// Create a ticker with the reconnect delay
@@ -32,7 +35,7 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 		// Create done channel (for when the connection is successfully established)
 		done := make(chan bool, 1)
 
-		logMessage("Attempting RabbitMQ connection")
+		log.Info().Msg("attempting RabbitMQ connection")
 
 		// Attempt to connect to the broker
 		conn, err := broker.connect()
@@ -52,7 +55,7 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 		for {
 			select {
 			case <-ticker.C:
-				logMessage("Attempting RabbitMQ connection")
+				log.Info().Msg("attempting RabbitMQ connection")
 
 				// Attempt to connect to the broker
 				conn, err := broker.connect()
@@ -69,7 +72,7 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 					done <- true
 				}
 			case <-done:
-				logMessage("Succesfully connected to RabbitMQ broker")
+				log.Info().Msg("successfully connected to RabbitMQ")
 				return &broker, nil
 			}
 		}

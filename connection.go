@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/streadway/amqp"
 )
 
@@ -20,10 +21,11 @@ func (c *connection) shutdown() {
 }
 
 // Handle automatic restarting on connection closed
+// t is either "consumer" or "producer"
 func (c *connection) reconnect(t string, ch chan *amqp.Error) {
 	err := <-ch // Connection was closed for some reason
 
-	logError(err, fmt.Sprintf("%s connection was closed", t))
+	log.Err(err).Str("connType", t).Msg("connection was closed")
 
 	// Create new ticker with the desired connection delay time
 	ticker := time.NewTicker(c.config.reconnectDelay)
@@ -33,10 +35,10 @@ func (c *connection) reconnect(t string, ch chan *amqp.Error) {
 
 		var err error
 
-		logMessage(fmt.Sprintf("Attempting to re-open %s connection", t))
+		log.Info().Str("connType", t).Msg("attempting to reconnect")
 		c.conn, err = amqp.Dial("amqp://" + c.config.user + ":" + c.config.password + "@" + c.config.host + ":" + fmt.Sprint(c.config.port))
 
-		logError(err, fmt.Sprintf("Failed to re-open %s connection", t))
+		log.Err(err).Str("connType", t).Msg("failed to reconnect")
 
 		if !c.conn.IsClosed() {
 			go c.reconnect(t, c.conn.NotifyClose(make(chan *amqp.Error)))
@@ -45,5 +47,5 @@ func (c *connection) reconnect(t string, ch chan *amqp.Error) {
 		}
 	}
 
-	logMessage(fmt.Sprintf("Successfully re-opened %s connection", t))
+	log.Info().Str("connType", t).Msg("successfully reconnected")
 }
