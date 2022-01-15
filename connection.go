@@ -38,7 +38,9 @@ func (c *connection) reconnect(t string, ch chan *amqp.Error) {
 		log.Info().Str("connType", t).Msg("attempting to reconnect")
 		c.conn, err = amqp.Dial("amqp://" + c.config.user + ":" + c.config.password + "@" + c.config.host + ":" + fmt.Sprint(c.config.port))
 
-		log.Err(err).Str("connType", t).Msg("failed to reconnect")
+		if err != nil {
+			log.Error().AnErr("err", err).Str("connType", t).Msg("failed to reconnect")
+		}
 
 		if !c.conn.IsClosed() {
 			go c.reconnect(t, c.conn.NotifyClose(make(chan *amqp.Error)))

@@ -60,7 +60,9 @@ func (p *RabbitProducer) openChannel(c *connection) error {
 	var err error
 	log.Info().Str("type", "producer").Str("exchange", p.exchange.name).Msg("attempting to open channel")
 	p.channel, err = c.conn.Channel()
-	log.Err(err).Str("type", "producer").Str("exchange", p.exchange.name).Msg("failed to open channel")
+	if err != nil {
+		log.Error().AnErr("err", err).Str("type", "producer").Str("exchange", p.exchange.name).Msg("failed to open channel")
+	}
 	return err
 }
 
@@ -129,7 +131,9 @@ func (p *RabbitProducer) PublishMessage(msg []byte, key *string, headers *amqp.T
 			Headers:      *headers,
 		},
 	)
-	log.Err(err).Str("type", "producer").Str("routingKey", *key).Str("exchange", p.exchange.name).Msg("error during message production")
+	if err != nil {
+		log.Error().Str("type", "producer").AnErr("err", err).Str("routingKey", *key).Str("exchange", p.exchange.name).Msg("error during message production")
+	}
 }
 
 // ReconnectChannel tries to re-open this producer's channel

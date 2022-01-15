@@ -35,7 +35,9 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageH
 		false,
 		args,
 	)
-	log.Err(err).Str("type", "consumer").Str("consumerTag", c.tag).Str("routingKey", c.routingKey).Msg("failed to consume messages")
+	if err != nil {
+		log.Error().AnErr("err", err).Str("type", "consumer").Str("consumerTag", c.tag).Str("routingKey", c.routingKey).Msg("failed to consume messages")
+	}
 
 	// Set some more consumer attributes
 	c.autoAck = autoAck
@@ -158,7 +160,9 @@ func (c *RabbitConsumer) ReconnectChannel() error {
 	log.Info().Str("type", "consumer").Str("routingKey", c.routingKey).Str("consumerTag", c.tag).Msg("attempting to re-open channel")
 	var err error
 	c.channel, err = c.conn.conn.Channel()
-	log.Err(err).Str("type", "consumer").Str("routingKey", c.routingKey).Str("consumerTag", c.tag).Msg("failed to re-open channel")
+	if err != nil {
+		log.Error().AnErr("err", err).Str("type", "consumer").Str("routingKey", c.routingKey).Str("consumerTag", c.tag).Msg("failed to re-open channel")
+	}
 	return err
 }
 
