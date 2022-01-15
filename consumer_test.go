@@ -13,7 +13,7 @@ func TestConsumer(t *testing.T) {
 	key := "key"
 	exchange, _ := CreateExchange("test-exchange", Direct, false, false, false, false, nil)
 	queue := CreateQueue(exchange, "test-queue", false, false, false, false, nil)
-	c, _ := broker.CreateConsumer(queue, key, "", DefaultConsumerErrorHandler)
+	c, _ := broker.CreateConsumer(queue, key, "")
 
 	messageHandler := func(msg amqp.Delivery) {
 		log.Println(string(msg.Body))
@@ -23,7 +23,7 @@ func TestConsumer(t *testing.T) {
 
 	go c.ConsumeMessages(nil, true, messageHandler)
 
-	p, _ := broker.CreateProducer(exchange, DefaultProducerErrorHandler)
+	p, _ := broker.CreateProducer(exchange)
 	p.PublishMessage([]byte("10"), &key, &amqp.Table{})
 
 	time.Sleep(time.Second * 2)

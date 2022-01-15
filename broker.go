@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/streadway/amqp"
 )
 
@@ -24,6 +25,8 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 		config: config,
 	}
 
+	log.Info().Msg("creating broker")
+
 	// Check if reconnect is turned on
 	if config.autoReconnect {
 		// Create a ticker with the reconnect delay
@@ -32,7 +35,7 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 		// Create done channel (for when the connection is successfully established)
 		done := make(chan bool, 1)
 
-		logMessage("Attempting RabbitMQ connection")
+		log.Info().Msg("attempting RabbitMQ connection")
 
 		// Attempt to connect to the broker
 		conn, err := broker.connect()
@@ -52,7 +55,7 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 		for {
 			select {
 			case <-ticker.C:
-				logMessage("Attempting RabbitMQ connection")
+				log.Info().Msg("attempting RabbitMQ connection")
 
 				// Attempt to connect to the broker
 				conn, err := broker.connect()
@@ -69,7 +72,7 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 					done <- true
 				}
 			case <-done:
-				logMessage("Succesfully connected to RabbitMQ broker")
+				log.Info().Msg("successfully connected to RabbitMQ")
 				return &broker, nil
 			}
 		}
@@ -93,13 +96,13 @@ CreateConsumer creates a consumer
 	errorHandler: func(error), the function to handle possible consumer errors
 	Returns: Consumer and a possible error
 */
-func (b *RabbitBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag string, errorHandler func(error)) (Consumer, error) {
+func (b *RabbitBroker) CreateConsumer(queue *Queue, bindingKey string, consumerTag string) (Consumer, error) {
 	if b.consumerConn == nil {
 		b.consumerConn, _ = b.connect()
 		go b.consumerConn.reconnect("consumer", b.consumerConn.conn.NotifyClose(make(chan *amqp.Error)))
 	}
 
-	return b.consumerConn.createConsumer(queue, bindingKey, consumerTag, errorHandler)
+	return b.consumerConn.createConsumer(queue, bindingKey, consumerTag)
 }
 
 /*
@@ -108,13 +111,13 @@ CreateProducer creates a producer
 	errorHandler: func(ProducerError), the errorhandler for this producer
 	Returns: Producer and a possible error
 */
-func (b *RabbitBroker) CreateProducer(exchange *Exchange, errorHandler func(ProducerError)) (Producer, error) {
+func (b *RabbitBroker) CreateProducer(exchange *Exchange) (Producer, error) {
 	if b.producerConn == nil {
 		b.producerConn, _ = b.connect()
 		go b.producerConn.reconnect("producer", b.producerConn.conn.NotifyClose(make(chan *amqp.Error)))
 	}
 
-	return b.producerConn.createProducer(exchange, errorHandler)
+	return b.producerConn.createProducer(exchange)
 }
 
 // Connect attempts to make a connection to the broker using the broker connection config
@@ -126,9 +129,8 @@ func (b *RabbitBroker) connect() (*connection, error) {
 
 	// Create a connection struct
 	connection := &connection{
-		conn:         nil,
-		errorHandler: config.errorHandler,
-		config:       config,
+		conn:   nil,
+		config: config,
 	}
 
 	// Form the RabbitMQ connection URI

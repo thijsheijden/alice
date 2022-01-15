@@ -1,33 +1,30 @@
 package alice
 
 import (
-	"errors"
-	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/streadway/amqp"
 )
 
 // RabbitProducer models a RabbitMQ producer
 type RabbitProducer struct {
-	channel      *amqp.Channel       // The channel this producer uses to communicate with the broker
-	exchange     *Exchange           // The exchange this producer produces to
-	errorHandler func(ProducerError) // Error handler for this producer
-	conn         *connection         // Pointer to broker connection
+	channel  *amqp.Channel // The channel this producer uses to communicate with the broker
+	exchange *Exchange     // The exchange this producer produces to
+	conn     *connection   // Pointer to broker connection
 }
 
 // CreateProducer creates and returns a producer attached to the given exchange.
 // The errorHandler can be the DefaultProducerErrorHandler or a custom handler.
-func (c *connection) createProducer(exchange *Exchange, errorHandler func(ProducerError)) (*RabbitProducer, error) {
+func (c *connection) createProducer(exchange *Exchange) (*RabbitProducer, error) {
 
 	var err error
 
 	// Create producer object
 	p := &RabbitProducer{
-		channel:      nil,
-		exchange:     exchange,
-		errorHandler: errorHandler,
-		conn:         c,
+		channel:  nil,
+		exchange: exchange,
+		conn:     c,
 	}
 
 	// Open channel to broker
@@ -53,7 +50,7 @@ func (c *connection) createProducer(exchange *Exchange, errorHandler func(Produc
 	// Listen for returned messages from the broker
 	p.listenForReturnedMessages()
 
-	logMessage(fmt.Sprintf("Created producer on exchange '%s'", exchange.name))
+	log.Info().Str("exchange", exchange.name).Msg("created producer")
 
 	return p, nil
 }
@@ -61,7 +58,9 @@ func (c *connection) createProducer(exchange *Exchange, errorHandler func(Produc
 // Open channel to broker
 func (p *RabbitProducer) openChannel(c *connection) error {
 	var err error
+	log.Info().Str("type", "producer").Str("exchange", p.exchange.name).Msg("attempting to open channel")
 	p.channel, err = c.conn.Channel()
+	log.Err(err).Str("type", "producer").Str("exchange", p.exchange.name).Msg("failed to open channel")
 	return err
 }
 
@@ -83,8 +82,8 @@ func (p *RabbitProducer) declareExchange(exchange *Exchange) error {
 func (p *RabbitProducer) listenForClose() {
 	closeChan := p.channel.NotifyClose(make(chan *amqp.Error))
 	go func() {
-		<-closeChan
-		logMessage("Producer was closed")
+		closeErr := <-closeChan
+		log.Error().Str("type", "producer").AnErr("err", closeErr).Str("exchange", p.exchange.name).Msg("connection was closed")
 	}()
 }
 
@@ -95,13 +94,7 @@ func (p *RabbitProducer) listenForFlow() {
 	go func() {
 		for {
 			<-flowChan
-			err := ProducerError{
-				producer:    p,
-				err:         errors.New("Too many messages being produced"),
-				status:      505,
-				recoverable: true,
-			}
-			p.errorHandler(err)
+			log.Error().Str("type", "producer").Str("exchange", p.exchange.name).Msg("too many messages being produced")
 		}
 	}()
 }
@@ -113,13 +106,7 @@ func (p *RabbitProducer) listenForReturnedMessages() {
 	go func() {
 		for {
 			returnedMsg := <-returnedMessageChan
-			err := ProducerError{
-				producer: p,
-				err:      errors.New("Message was returned from the exchange"),
-				status:   100,
-				returned: returnedMsg,
-			}
-			p.errorHandler(err)
+			log.Error().Str("type", "producer").Str("exchange", p.exchange.name).Interface("msg", returnedMsg).Msg("message was returned")
 		}
 	}()
 }
@@ -127,7 +114,7 @@ func (p *RabbitProducer) listenForReturnedMessages() {
 // PublishMessage publishes a message with the given routing key
 func (p *RabbitProducer) PublishMessage(msg []byte, key *string, headers *amqp.Table) {
 
-	logMessage(fmt.Sprintf("Publishing message of size '%d' bytes to exchange '%s' with routing key '%s'", len(msg), p.exchange.name, *key))
+	log.Trace().Str("type", "producer").Str("routingKey", *key).Str("exchange", p.exchange.name).Int("msgSize", len(msg)).Msg("producing message")
 
 	err := p.channel.Publish(
 		p.exchange.name,
@@ -142,63 +129,16 @@ func (p *RabbitProducer) PublishMessage(msg []byte, key *string, headers *amqp.T
 			Headers:      *headers,
 		},
 	)
-	if err != nil {
-		p.errorHandler(ProducerError{producer: p, err: err, status: 504}) // Error can only be channel or connection not being open
-	}
+	log.Err(err).Str("type", "producer").Str("routingKey", *key).Str("exchange", p.exchange.name).Msg("error during message production")
 }
 
 // ReconnectChannel tries to re-open this producer's channel
 func (p *RabbitProducer) ReconnectChannel() {
-	logMessage("Attempting to re-open producer channel")
 	p.openChannel(p.conn)
 }
 
 // Shutdown closes this producer's channel
 func (p *RabbitProducer) Shutdown() error {
-	logMessage("Shutting down producer")
+	log.Info().Str("type", "producer").Str("exchange", p.exchange.name).Msg("shutting down")
 	return p.channel.Close()
-}
-
-// ProducerError are errors the producer can throw and which need to be handled by the producer error handler
-type ProducerError struct {
-	producer    *RabbitProducer // The producer that had this error
-	err         error           // The actual error that occurred
-	status      int             // Status code belonging to this error
-	returned    amqp.Return     // Message that this error is about
-	recoverable bool            // Whether this error is recoverable by retrying at a later moment
-}
-
-// MARK: Producer errors
-
-func (pe *ProducerError) Error() string {
-	return fmt.Sprintf("producer error: %v", pe.err)
-}
-
-// DefaultProducerErrorHandler is the default producer error handler
-func DefaultProducerErrorHandler(err ProducerError) {
-	switch err.status {
-	case 504: // Error while publishing message
-		// Publishing channel or RabbitMQ connection not open
-		logMessage(err.Error())
-	case 320: // Error thrown on NotifyClose
-		// Channel or connection was closed
-		logMessage(err.Error())
-
-		// If this is recoverable try and recover
-		if err.recoverable {
-			err.producer.ReconnectChannel()
-		}
-	case 300: // Error opening channel
-		logMessage(err.Error())
-	case 202: // Error declaring exchange
-		logMessage(err.Error())
-	case 505: // Too many messages being published, rate limit messages
-		// TODO: Rate limit messages for some time
-		logMessage(err.Error())
-	case 100: // Message was returned from the broker due to being undeliverable
-		// TODO: Resend message?
-		logMessage(err.Error())
-	default:
-		logMessage(err.Error())
-	}
 }

@@ -1,9 +1,9 @@
 package alice
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/streadway/amqp"
 )
 
@@ -11,7 +11,6 @@ import (
 type RabbitConsumer struct {
 	channel        *amqp.Channel       // Channel this consumer uses to communicate with broker
 	queue          *Queue              // The queue this consumer consumes from
-	errorHandler   func(error)         // Error Handler for this consumer
 	conn           *connection         // Pointer to broker connection
 	autoAck        bool                // Whether this consumer want autoAck
 	tag            string              // Consumer tag
@@ -36,7 +35,7 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageH
 		false,
 		args,
 	)
-	logError(err, "Failed to consume messages")
+	log.Err(err).Str("type", "consumer").Str("consumerTag", c.tag).Str("routingKey", c.routingKey).Msg("failed to consume messages")
 
 	// Set some more consumer attributes
 	c.autoAck = autoAck
@@ -44,18 +43,19 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageH
 	c.messageHandler = messageHandler
 
 	// Listen for incoming messages and pass them to the message handler
+	log.Info().Str("type", "consumer").Str("consumerTag", c.tag).Str("routingKey", c.routingKey).Msg("starting message consumption")
 	for message := range messages {
-		logMessage(fmt.Sprintf("Received message of '%d' bytes from exchange '%v'", len(message.Body), message.Exchange))
+		log.Trace().Str("type", "consumer").Str("consumerTag", c.tag).Str("routingKey", c.routingKey).Str("exchange", message.Exchange).Int("msgSize", len(message.Body)).Msg("received message")
 		go func(message amqp.Delivery) {
 			// Intercept any errors propagating up the stack
 			defer func() {
 				if err := recover(); err != nil {
-					logError(err.(error), "PANIC ")
+					log.Error().Str("type", "consumer").AnErr("err", err.(error)).Msg("error occurred in message handler")
 				}
 
 				if autoAck {
-					logMessage(fmt.Sprintf("Automatically acknowledged message %s", message.MessageId))
 					message.Ack(true)
+					log.Trace().Str("type", "consumer").Str("consumerTag", c.tag).Str("routingKey", c.routingKey).Str("msgID", message.MessageId).Msg("automatically acked message")
 				}
 			}()
 
@@ -66,15 +66,13 @@ func (c *RabbitConsumer) ConsumeMessages(args amqp.Table, autoAck bool, messageH
 }
 
 // createConsumer creates a new Consumer on this connection
-func (c *connection) createConsumer(queue *Queue, routingKey string, consumerTag string, errorHandler func(error)) (Consumer, error) {
-
+func (c *connection) createConsumer(queue *Queue, routingKey string, consumerTag string) (Consumer, error) {
 	consumer := &RabbitConsumer{
-		channel:      nil,
-		queue:        queue,
-		errorHandler: errorHandler,
-		conn:         c,
-		tag:          consumerTag,
-		routingKey:   routingKey,
+		channel:    nil,
+		queue:      queue,
+		conn:       c,
+		tag:        consumerTag,
+		routingKey: routingKey,
 	}
 
 	var err error
@@ -92,7 +90,7 @@ func (c *connection) createConsumer(queue *Queue, routingKey string, consumerTag
 	}
 
 	//Creates the queue
-	q, err := consumer.declareQueue(queue)
+	_, err = consumer.declareQueue(queue)
 	if err != nil {
 		return nil, err
 	}
@@ -105,10 +103,7 @@ func (c *connection) createConsumer(queue *Queue, routingKey string, consumerTag
 
 	consumer.listenForClose()
 
-	//Prints the specifications
-	logMessage(fmt.Sprintf("Declared queue %s with currently %d consumers, binding to exchange %q",
-		queue.name, q.Consumers, queue.exchange.name))
-	logMessage(fmt.Sprintf("Created consumer on queue '%s' with routing key '%s'", queue.name, routingKey))
+	log.Info().Str("type", "consumer").Str("queue", queue.name).Str("routingKey", routingKey).Str("consumerTag", consumerTag).Msg("created consumer")
 
 	return consumer, nil
 }
@@ -153,22 +148,23 @@ func (c *RabbitConsumer) listenForClose() {
 	closeChan := c.channel.NotifyClose(make(chan *amqp.Error))
 	go func() {
 		closeErr := <-closeChan
-		logError(closeErr, closeErr.Reason)
+		log.Error().Str("type", "consumer").AnErr("err", closeErr).Str("routingKey", c.routingKey).Str("consumerTag", c.tag).Msg("connection was closed")
 		c.reconnect()
 	}()
 }
 
 // ReconnectChannel tries to re-open this consumers channel
 func (c *RabbitConsumer) ReconnectChannel() error {
-	logMessage("Attempting to re-open consumer channel")
+	log.Info().Str("type", "consumer").Str("routingKey", c.routingKey).Str("consumerTag", c.tag).Msg("attempting to re-open channel")
 	var err error
 	c.channel, err = c.conn.conn.Channel()
+	log.Err(err).Str("type", "consumer").Str("routingKey", c.routingKey).Str("consumerTag", c.tag).Msg("failed to re-open channel")
 	return err
 }
 
 // Shutdown shuts down the consumer
 func (c *RabbitConsumer) Shutdown() error {
-	logMessage("Shutting down consumer")
+	log.Info().Str("type", "consumer").Str("routingKey", c.routingKey).Str("consumerTag", c.tag).Msg("shutting down consumer")
 	return c.channel.Close()
 }
 
@@ -211,7 +207,7 @@ func (c *RabbitConsumer) reconnect() error {
 
 			c.listenForClose()
 
-			logMessage("consumer reconnected")
+			log.Info().Str("type", "consumer").Str("routingKey", c.routingKey).Str("consumerTag", c.tag).Msg("reconnected")
 
 			go c.ConsumeMessages(c.args, c.autoAck, c.messageHandler)
 
@@ -219,10 +215,3 @@ func (c *RabbitConsumer) reconnect() error {
 		}
 	}
 }
-
-// DefaultConsumerErrorHandler handles the errors of this consumer
-func DefaultConsumerErrorHandler(err error) {
-	logMessage(err.Error())
-}
-
-// MARK: Consumer errors
