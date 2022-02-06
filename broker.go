@@ -27,6 +27,8 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 
 	log.Info().Msg("creating broker")
 
+	attemptNumber := 1
+
 	// Check if reconnect is turned on
 	if config.autoReconnect {
 		// Create a ticker with the reconnect delay
@@ -50,6 +52,9 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 
 			// Signal that we are done
 			done <- true
+		} else {
+			// There is an error
+			log.Error().Err(err).Int("attempt", attemptNumber).Msg("error while connecting to RabbitMQ")
 		}
 
 		for {
@@ -71,8 +76,10 @@ func CreateBroker(config *ConnectionConfig) (Broker, error) {
 					// Signal that we are done
 					done <- true
 				}
+
+				attemptNumber++
 			case <-done:
-				log.Info().Msg("successfully connected to RabbitMQ")
+				log.Info().Int("attempt", attemptNumber).Msg("successfully connected to RabbitMQ")
 				return &broker, nil
 			}
 		}
